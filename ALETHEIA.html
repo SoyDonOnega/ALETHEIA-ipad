@@ -193,37 +193,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 .slash-popup button.active { background: var(--hover); }
 .slash-ico { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px solid var(--border); border-radius: 4px; font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
 
-/* Reflection docked panel */
-#reflection-panel { position: relative; width: 340px; flex-shrink: 0; border-left: 1px solid var(--border); background: var(--surface); display: none; flex-direction: column; min-width: 0; }
-#reflection-panel.open { display: flex; }
-#reflection-resize { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 5; }
-#reflection-resize:hover { background: var(--accent-soft); }
-#reflection-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg); }
-#reflection-header span { font-size: 10px; letter-spacing: 1.5px; font-weight: 600; color: var(--text-muted); }
-#reflection-close { border: none; background: transparent; cursor: pointer; color: var(--text-muted); font-size: 16px; line-height: 1; }
-#reflection-close:hover { color: var(--text); }
-#reflection-export-md, #reflection-import-md, #reflection-clear { border: 1px solid var(--border); background: var(--surface); cursor: pointer; color: var(--text-muted); font-size: 10px; font-weight: 600; letter-spacing: 0.5px; line-height: 1; padding: 4px 7px; border-radius: 5px; white-space: nowrap; }
-#reflection-clear:hover { color: var(--text); border-color: var(--text-muted); }
-#reflection-export-md:hover, #reflection-import-md:hover { color: var(--text); border-color: var(--text-muted); }
-#reflection-body { flex: 1; overflow-y: auto; padding: 16px 18px; font-size: 14px; line-height: 1.6; color: var(--text); outline: none; }
-#reflection-body:empty:before { content: attr(data-placeholder); color: var(--text-muted); }
-#reflection-body h1 { font-size: 20px; } #reflection-body h2 { font-size: 17px; } #reflection-body h3 { font-size: 15px; }
-#reflection-body blockquote { border-left: 3px solid var(--border); margin: 8px 0; padding: 2px 12px; color: var(--text-muted); }
-#reflection-body hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
-#reflection-ai { border-top: 1px solid var(--border); }
-#ai-toggle { width: 100%; text-align: left; border: none; background: var(--bg); padding: 9px 14px; font-size: 10px; letter-spacing: 1.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; display: flex; justify-content: space-between; }
-#ai-panel { display: none; padding: 10px 14px 14px; }
-#ai-panel.open { display: block; }
-.ai-row { margin-bottom: 8px; }
-.ai-row input, .ai-row select { width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--surface); color: var(--text); }
-#ai-save { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); cursor: pointer; font-size: 12px; }
-#ai-save:hover { background: var(--hover); }
-.ai-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
-.ai-act { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); cursor: pointer; font-size: 12px; text-align: left; }
-.ai-act:hover:not(:disabled) { background: var(--hover); }
-.ai-act:disabled { opacity: 0.45; cursor: not-allowed; }
-#ai-status { font-size: 10px; color: var(--text-muted); margin-top: 10px; line-height: 1.4; }
-
 /* Table picker popup */
 .table-popup { position: fixed; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg); padding: 14px; z-index: 5000; display: none; }
 .table-popup.show { display: block; }
@@ -396,15 +365,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
           <span class="ribbon-group-label">Annotate</span>
         </div>
       </div>
-      <div class="ribbon-group">
-        <div class="rg-wrap">
-          <button class="rb-btn" id="btn-insert-reflection" disabled="" title="Reflection notes panel (study)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="8" y1="9" x2="16" y2="9"></line><line x1="8" y1="13" x2="13" y2="13"></line></svg>
-            Reflection
-          </button>
-          <span class="ribbon-group-label">Reflection</span>
-        </div>
-      </div>
     </div>
 
     <div class="ribbon-panel" data-panel="formato">
@@ -474,44 +434,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     <iframe id="content-iframe"></iframe>
     <div id="iframe-overlay"></div>
   </div>
-
-  <!-- Reflection notes panel (docked right) -->
-  <aside id="reflection-panel">
-    <div id="reflection-resize" title="Drag to resize"></div>
-    <div id="reflection-header">
-      <span>REFLECTION</span>
-      <div style="display:flex;align-items:center;gap:7px">
-        <button id="reflection-import-md" title="Import a .md file into these notes">↑ md</button>
-        <button id="reflection-export-md" title="Export notes as Markdown (.md)">↓ md</button>
-        <button id="reflection-clear" title="Clear all notes">Clear</button>
-        <button id="reflection-close" title="Close">×</button>
-      </div>
-    </div>
-    <input type="file" id="reflection-import-input" accept=".md,.markdown,text/markdown,text/plain" style="display:none">
-    <div id="reflection-body" contenteditable="true" data-placeholder="Type your notes… press &quot;/&quot; for blocks"></div>
-    <div id="reflection-ai">
-      <button id="ai-toggle" type="button">AI ASSISTANT <span id="ai-caret">▸</span></button>
-      <div id="ai-panel">
-        <div class="ai-row">
-          <select id="ai-provider">
-            <option value="anthropic">Anthropic (Claude)</option>
-            <option value="openai">OpenAI</option>
-            <option value="compatible">OpenAI-compatible</option>
-          </select>
-        </div>
-        <div class="ai-row"><input id="ai-key" type="password" placeholder="API key (stored only in this browser)"></div>
-        <div class="ai-row" id="ai-baseurl-row" style="display:none"><input id="ai-baseurl" type="text" placeholder="Base URL (https://…/v1)"></div>
-        <div class="ai-row"><input id="ai-model" type="text" placeholder="Model (optional)"></div>
-        <div class="ai-row"><button id="ai-save" type="button">Save key</button></div>
-        <div class="ai-actions">
-          <button class="ai-act" data-ai="summarize" type="button">Summarize notes</button>
-          <button class="ai-act" data-ai="explain" type="button">Explain selection</button>
-          <button class="ai-act" data-ai="questions" type="button">Generate questions</button>
-        </div>
-        <div id="ai-status">Stored only in this browser. AI calls need internet; the editor stays offline.</div>
-      </div>
-    </div>
-  </aside>
 
   <!-- Properties Panel (now outside #app, floating) -->
 </div>
@@ -745,31 +667,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   let originalHTML = '';
   let gridVisible = false;
   let zoomLevel = 100;
-  let canvasScale = 1;  // <1 while the Reflection panel scales the canvas down (no reflow)
+  let canvasScale = 1;
   let currentFileName = 'documento-editado';
-  // Scale the iframe down proportionally when Reflection is open so the HTML never reflows;
-  // restores to 1:1 when closed. canvasScale stays 1 when closed → pointer math is unchanged.
-  function applyReflectionScale() {
-    if(!iframe) return;
-    const wrap = document.getElementById('canvas-wrap');
-    const open = reflectionPanel.classList.contains('open');
-    if(!open || !wrap) {
-      canvasScale = 1; zoomLevel = 100;
-      iframe.style.transform = ''; iframe.style.transformOrigin = '';
-      iframe.style.width = ''; iframe.style.height = '';
-      if(selectedEl) addResizeHandles();
-      return;
-    }
-    const avail = wrap.clientWidth;
-    const design = (wrap.parentElement ? wrap.parentElement.clientWidth : avail) || avail;
-    canvasScale = (design > 0 && avail > 0) ? (avail / design) : 1;
-    zoomLevel = canvasScale * 100;
-    iframe.style.transformOrigin = 'top left';
-    iframe.style.width = design + 'px';
-    iframe.style.height = (wrap.clientHeight / canvasScale) + 'px';
-    iframe.style.transform = 'scale(' + canvasScale + ')';
-    if(selectedEl) addResizeHandles();
-  }
   let panelHiddenDuringDrag = false;
   let clipboardEl = null;
   let clipboardSource = null; // { left, top, zIndex, parentEl }
@@ -809,7 +708,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   const btnInsertImage = document.getElementById('btn-insert-image');
   const btnInsertTable = document.getElementById('btn-insert-table');
   const btnInsertNote = document.getElementById('btn-insert-note');
-  const btnInsertReflection = document.getElementById('btn-insert-reflection');
   const btnInsertHighlight = document.getElementById('btn-insert-highlight');
   const btnInsertPencil = document.getElementById('btn-insert-pencil');
   const btnInsertEraser = document.getElementById('btn-insert-eraser');
@@ -820,8 +718,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   const penMenu = document.getElementById('pen-menu');
   const penSize = document.getElementById('pen-size');
   const eraserMenu = document.getElementById('eraser-menu');
-  const reflectionPanel = document.getElementById('reflection-panel');
-  const reflectionBody = document.getElementById('reflection-body');
   const btnBold = document.getElementById('btn-bold');
   const btnItalic = document.getElementById('btn-italic');
   const btnUnderline = document.getElementById('btn-underline');
@@ -958,7 +854,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     btnInsertImage.disabled = !loaded;
     btnInsertTable.disabled = !loaded;
     btnInsertNote.disabled = !loaded;
-    btnInsertReflection.disabled = !loaded;
     btnInsertHighlight.disabled = !loaded;
     btnInsertPencil.disabled = !loaded;
     btnInsertEraser.disabled = !loaded;
@@ -1027,26 +922,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
         saveState();
         updateInsertButtons();
         setupIframeListeners();
-        // Round-trip: pull embedded reflection notes back into the panel;
-        // if none, clear whatever the previous file left behind.
-        try {
-          const embedded = iframeDoc.querySelector('[data-editor-reflection]');
-          if(embedded) {
-            const inner = embedded.cloneNode(true);
-            const label = inner.querySelector('div'); if(label) label.remove();
-            reflectionBody.innerHTML = inner.innerHTML.trim();
-            embedded.remove();
-            saveState();
-            try { localStorage.setItem('vhe_reflection_notes', reflectionBody.innerHTML); } catch(e){}
-            reflectionPanel.classList.add('open');
-            btnInsertReflection.classList.add('active');
-          } else {
-            reflectionBody.innerHTML = '';
-            reflectionPanel.classList.remove('open');
-            btnInsertReflection.classList.remove('active');
-            applyReflectionScale();
-          }
-        } catch(ex) {}
       } catch(ex) {
         showError('Initialization error: ' + ex.message);
       }
@@ -1787,7 +1662,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     if(!selectedEl || !panel.classList.contains('open')) return;
     const iframeRect = iframe.getBoundingClientRect();
     const elRect = selectedEl.getBoundingClientRect();
-    // Element coords relative to the parent viewport (iframe offset + Reflection scale)
     const elTop = iframeRect.top + elRect.top * canvasScale;
     const elLeft = iframeRect.left + elRect.left * canvasScale;
     const elBottom = elTop + elRect.height * canvasScale;
@@ -2393,200 +2267,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     saveState();
   }
 
-  // === REFLECTION: docked right-side notes panel ===
-  btnInsertReflection.addEventListener('click', () => {
-    reflectionPanel.classList.toggle('open');
-    btnInsertReflection.classList.toggle('active', reflectionPanel.classList.contains('open'));
-    applyReflectionScale();
-    if(reflectionPanel.classList.contains('open')) reflectionBody.focus();
-  });
-  document.getElementById('reflection-close').addEventListener('click', () => {
-    reflectionPanel.classList.remove('open');
-    btnInsertReflection.classList.remove('active');
-    applyReflectionScale();
-  });
-  window.addEventListener('resize', () => { if(reflectionPanel.classList.contains('open')) applyReflectionScale(); });
-  // Restore persisted width + notes
-  try {
-    const w = parseInt(localStorage.getItem('vhe_reflection_w'));
-    if(w) reflectionPanel.style.width = w + 'px';
-    const saved = localStorage.getItem('vhe_reflection_notes');
-    if(saved) reflectionBody.innerHTML = saved;
-  } catch(ex) {}
-  // Autosave notes (debounced)
-  let reflectionSaveT = null;
-  reflectionBody.addEventListener('input', () => {
-    clearTimeout(reflectionSaveT);
-    reflectionSaveT = setTimeout(() => { try { localStorage.setItem('vhe_reflection_notes', reflectionBody.innerHTML); } catch(ex){} }, 600);
-  });
-
-  // === EXPORT REFLECTION NOTES AS MARKDOWN ===
-  function reflectionToMarkdown() {
-    const lines = [];
-    function inline(node) {
-      let out = '';
-      node.childNodes.forEach(n => {
-        if(n.nodeType === 3) { out += n.textContent; return; }
-        if(n.nodeType !== 1) return;
-        const tag = n.tagName.toLowerCase();
-        if(tag === 'br') { out += '  \n'; return; }
-        if(n.matches && n.matches('input[type="checkbox"]')) return;
-        const inner = inline(n);
-        if(tag === 'strong' || tag === 'b') out += '**' + inner + '**';
-        else if(tag === 'em' || tag === 'i') out += '*' + inner + '*';
-        else if(tag === 'u') out += '<u>' + inner + '</u>';
-        else if(tag === 'code') out += '`' + inner + '`';
-        else if(tag === 'mark') out += '==' + inner + '==';
-        else if(tag === 'a') out += '[' + inner + '](' + (n.getAttribute('href') || '') + ')';
-        else out += inner;
-      });
-      return out;
-    }
-    function listItems(listEl, ordered, indent) {
-      let i = 1; const pad = '  '.repeat(indent);
-      listEl.querySelectorAll(':scope > li').forEach(li => {
-        const checkbox = li.querySelector('input[type="checkbox"]');
-        const bullet = checkbox ? ('- [' + (checkbox.checked ? 'x' : ' ') + '] ') : (ordered ? (i + '. ') : '- ');
-        const clone = li.cloneNode(true);
-        clone.querySelectorAll('ul,ol').forEach(e => e.remove());
-        lines.push(pad + bullet + inline(clone).trim());
-        li.querySelectorAll(':scope > ul').forEach(ul => listItems(ul, false, indent + 1));
-        li.querySelectorAll(':scope > ol').forEach(ol => listItems(ol, true, indent + 1));
-        i++;
-      });
-    }
-    function emitTable(t) {
-      const rows = [...t.querySelectorAll('tr')];
-      rows.forEach((tr, ri) => {
-        const cells = [...tr.children].map(td => inline(td).trim().replace(/\|/g, '\\|'));
-        lines.push('| ' + cells.join(' | ') + ' |');
-        if(ri === 0) lines.push('| ' + cells.map(() => '---').join(' | ') + ' |');
-      });
-    }
-    function walk(container) {
-      container.childNodes.forEach(n => {
-        if(n.nodeType === 3) { const t = n.textContent.trim(); if(t) { lines.push(t, ''); } return; }
-        if(n.nodeType !== 1) return;
-        const tag = n.tagName.toLowerCase();
-        if(/^h[1-6]$/.test(tag)) { lines.push('#'.repeat(+tag[1]) + ' ' + inline(n).trim(), ''); }
-        else if(tag === 'p') { lines.push(inline(n).trim(), ''); }
-        else if(tag === 'ul' || tag === 'ol') { listItems(n, tag === 'ol', 0); lines.push(''); }
-        else if(tag === 'blockquote') { inline(n).trim().split('\n').forEach(l => lines.push('> ' + l)); lines.push(''); }
-        else if(tag === 'hr') { lines.push('---', ''); }
-        else if(tag === 'pre') { lines.push('```', n.textContent.replace(/\n$/, ''), '```', ''); }
-        else if(tag === 'table') { emitTable(n); lines.push(''); }
-        else if(tag === 'dl') { n.querySelectorAll(':scope > dt').forEach(dt => { const dd = (dt.nextElementSibling && dt.nextElementSibling.tagName === 'DD') ? dt.nextElementSibling : null; lines.push('**' + inline(dt).trim() + '**' + (dd ? ': ' + inline(dd).trim() : '')); }); lines.push(''); }
-        else if(tag === 'details') { const sum = n.querySelector('summary'); lines.push('**' + (sum ? inline(sum).trim() : 'Toggle') + '**', ''); const body = n.cloneNode(true); const s = body.querySelector('summary'); if(s) s.remove(); walk(body); }
-        else if(tag === 'div') { walk(n); }
-        else { const t = inline(n).trim(); if(t) { lines.push(t, ''); } }
-      });
-    }
-    walk(reflectionBody);
-    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
-  }
-  document.getElementById('reflection-export-md').addEventListener('click', () => {
-    if(!reflectionBody.textContent.trim()) { showToast('No notes to export'); return; }
-    const md = reflectionToMarkdown();
-    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'reflection-notes.md';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast('Notes exported as .md');
-  });
-
-  // === IMPORT MARKDOWN INTO REFLECTION NOTES ===
-  function markdownToHtml(md) {
-    const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    function inline(t) {
-      t = esc(t);
-      t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
-      t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-      t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      t = t.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-      t = t.replace(/==([^=]+)==/g, '<mark style="background:#FFE45C;padding:1px 3px;border-radius:2px">$1</mark>');
-      t = t.replace(/&lt;u&gt;/g, '<u>').replace(/&lt;\/u&gt;/g, '</u>');
-      return t;
-    }
-    const lines = md.replace(/\r\n/g, '\n').split('\n');
-    let html = '', i = 0;
-    while(i < lines.length) {
-      const line = lines[i];
-      if(/^```/.test(line)) { i++; const code = []; while(i < lines.length && !/^```/.test(lines[i])) { code.push(lines[i]); i++; } i++; html += '<pre style="background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:6px;overflow:auto;font-size:13px"><code>' + esc(code.join('\n')) + '</code></pre>'; continue; }
-      const h = line.match(/^(#{1,6})\s+(.*)$/);
-      if(h) { const lvl = h[1].length; html += '<h' + lvl + '>' + inline(h[2]) + '</h' + lvl + '>'; i++; continue; }
-      if(/^\s*([-*_])\1{2,}\s*$/.test(line)) { html += '<hr>'; i++; continue; }
-      if(/^>\s?/.test(line)) { const q = []; while(i < lines.length && /^>\s?/.test(lines[i])) { q.push(lines[i].replace(/^>\s?/, '')); i++; } html += '<blockquote style="border-left:3px solid #CCCCCC;margin:8px 0;padding:2px 14px;color:#555555">' + inline(q.join(' ')) + '</blockquote>'; continue; }
-      if(/^\s*\|.*\|\s*$/.test(line) && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(lines[i + 1])) {
-        const rows = []; while(i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) { rows.push(lines[i]); i++; }
-        let t = '<table style="border-collapse:collapse;margin:8px 0">';
-        rows.forEach((r, ri) => { if(ri === 1) return; const cells = r.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim()); t += '<tr>' + cells.map(c => '<td style="border:1px solid #CCCCCC;padding:4px 8px;font-size:13px">' + inline(c) + '</td>').join('') + '</tr>'; });
-        html += t + '</table>'; continue;
-      }
-      if(/^(\s*)([-*+]|\d+\.)\s+/.test(line)) {
-        const ordered = /^\s*\d+\.\s/.test(line); const items = [];
-        while(i < lines.length && /^(\s*)([-*+]|\d+\.)\s+/.test(lines[i])) {
-          const m = lines[i].match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/); const content = m[3];
-          const todo = content.match(/^\[([ xX])\]\s+(.*)$/);
-          items.push(todo ? { check: todo[1].toLowerCase() === 'x', text: todo[2] } : { text: content });
-          i++;
-        }
-        if(items.some(it => 'check' in it)) {
-          html += '<ul style="list-style:none;padding-left:2px;margin:6px 0">' + items.map(it => '<li style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox"' + (it.check ? ' checked' : '') + ' style="margin-top:5px"><span>' + inline(it.text) + '</span></li>').join('') + '</ul>';
-        } else {
-          const tag = ordered ? 'ol' : 'ul';
-          html += '<' + tag + ' style="margin:6px 0;padding-left:22px">' + items.map(it => '<li>' + inline(it.text) + '</li>').join('') + '</' + tag + '>';
-        }
-        continue;
-      }
-      if(/^\s*$/.test(line)) { i++; continue; }
-      const buf = [];
-      while(i < lines.length && !/^\s*$/.test(lines[i]) && !/^(#{1,6}\s|>\s?|```|\s*([-*+]|\d+\.)\s|\s*\|)/.test(lines[i]) && !/^\s*([-*_])\1{2,}\s*$/.test(lines[i])) { buf.push(lines[i]); i++; }
-      html += '<p>' + inline(buf.join(' ').trim()) + '</p>';
-    }
-    return html || '<p><br></p>';
-  }
-  const reflectionImportInput = document.getElementById('reflection-import-input');
-  document.getElementById('reflection-clear').addEventListener('click', () => {
-    if(!reflectionBody.textContent.trim()) { showToast('Notes are already empty'); return; }
-    if(!window.confirm('Clear all reflection notes? This cannot be undone.')) return;
-    reflectionBody.innerHTML = '';
-    try { localStorage.setItem('vhe_reflection_notes', ''); } catch(ex) {}
-    reflectionBody.focus();
-    showToast('Notes cleared');
-  });
-  document.getElementById('reflection-import-md').addEventListener('click', () => reflectionImportInput.click());
-  reflectionImportInput.addEventListener('change', (e) => {
-    const file = e.target.files && e.target.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const imported = markdownToHtml(String(reader.result || ''));
-      // Append (with a divider) so existing notes are never destroyed
-      if(reflectionBody.textContent.trim()) reflectionBody.innerHTML += '<hr style="border:none;border-top:1px solid #CCCCCC;margin:14px 0">' + imported;
-      else reflectionBody.innerHTML = imported;
-      try { localStorage.setItem('vhe_reflection_notes', reflectionBody.innerHTML); } catch(ex) {}
-      showToast('Imported ' + file.name);
-    };
-    reader.readAsText(file);
-    reflectionImportInput.value = '';
-  });
-
-  // Resize by dragging the left edge (drag right→left widens)
-  (function(){
-    const handle = document.getElementById('reflection-resize');
-    let active = false, startX = 0, startW = 0;
-    handle.addEventListener('pointerdown', (e) => { active = true; startX = e.clientX; startW = reflectionPanel.offsetWidth; handle.setPointerCapture(e.pointerId); e.preventDefault(); });
-    handle.addEventListener('pointermove', (e) => {
-      if(!active) return;
-      const w = Math.max(260, Math.min(760, startW + (startX - e.clientX)));
-      reflectionPanel.style.width = w + 'px';
-      applyReflectionScale();
-    });
-    handle.addEventListener('pointerup', (e) => { if(!active) return; active = false; applyReflectionScale(); try { localStorage.setItem('vhe_reflection_w', reflectionPanel.offsetWidth); } catch(ex){} });
-  })();
-
   // === ANNOTATION TOOLS: pencil (opaque) · highlighter marker (multiply) · eraser ===
   let drawTool = null;              // 'pen' | 'marker' | 'eraser' | null
   let penColor = '#0A0A0A', penWidth = 3;
@@ -2758,87 +2438,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     return removed;
   }
 
-  // === REFLECTION AI ASSISTANT ===
-  (function(){
-    const provider = document.getElementById('ai-provider');
-    const keyIn = document.getElementById('ai-key');
-    const baseRow = document.getElementById('ai-baseurl-row');
-    const baseIn = document.getElementById('ai-baseurl');
-    const modelIn = document.getElementById('ai-model');
-    const status = document.getElementById('ai-status');
-    const aiPanel = document.getElementById('ai-panel');
-    document.getElementById('ai-toggle').addEventListener('click', () => {
-      aiPanel.classList.toggle('open');
-      document.getElementById('ai-caret').textContent = aiPanel.classList.contains('open') ? '▾' : '▸';
-    });
-    try {
-      provider.value = localStorage.getItem('vhe_ai_provider') || 'anthropic';
-      keyIn.value = localStorage.getItem('vhe_ai_key') || '';
-      baseIn.value = localStorage.getItem('vhe_ai_base') || '';
-      modelIn.value = localStorage.getItem('vhe_ai_model') || '';
-    } catch(ex) {}
-    const syncProvider = () => { baseRow.style.display = provider.value === 'compatible' ? 'block' : 'none'; };
-    provider.addEventListener('change', syncProvider); syncProvider();
-    document.getElementById('ai-save').addEventListener('click', () => {
-      try {
-        localStorage.setItem('vhe_ai_provider', provider.value);
-        localStorage.setItem('vhe_ai_key', keyIn.value.trim());
-        localStorage.setItem('vhe_ai_base', baseIn.value.trim());
-        localStorage.setItem('vhe_ai_model', modelIn.value.trim());
-        status.textContent = 'Saved. Key stored only in this browser.';
-      } catch(ex) { status.textContent = 'Could not save (storage blocked).'; }
-    });
-    document.querySelectorAll('.ai-act').forEach(btn => btn.addEventListener('click', () => aiAction(btn.dataset.ai, status)));
-  })();
-
-  async function aiAction(kind, status) {
-    let key = '', prov = 'anthropic', base = '', model = '';
-    try { key = localStorage.getItem('vhe_ai_key')||''; prov = localStorage.getItem('vhe_ai_provider')||'anthropic'; base = localStorage.getItem('vhe_ai_base')||''; model = localStorage.getItem('vhe_ai_model')||''; } catch(ex) {}
-    if(!key) { status.textContent = 'Add an API key first.'; return; }
-    const notes = reflectionBody.innerText.trim();
-    let docSel = '';
-    try { const s = iframeDoc && iframeDoc.getSelection(); if(s && s.toString()) docSel = s.toString(); } catch(ex){}
-    const prompts = {
-      summarize: 'Summarize these study notes into concise bullet points:\n\n' + notes,
-      explain: 'Explain this clearly for a student:\n\n' + (docSel || notes),
-      questions: 'Generate 5 study questions (with brief answers) from this material:\n\n' + (docSel || notes)
-    };
-    const prompt = prompts[kind] || notes;
-    if(!prompt.trim()) { status.textContent = 'Nothing to send (empty notes/selection).'; return; }
-    status.textContent = 'Thinking…';
-    try {
-      const text = await aiCall(prov, key, base, model, prompt);
-      const div = document.createElement('div');
-      div.innerHTML = '<hr><p><strong>AI · ' + kind + '</strong></p><p>' + text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>') + '</p>';
-      reflectionBody.appendChild(div);
-      try { localStorage.setItem('vhe_reflection_notes', reflectionBody.innerHTML); } catch(ex){}
-      status.textContent = 'Done.';
-    } catch(err) {
-      status.textContent = 'AI error: ' + (err && err.message || err) + (location.protocol === 'file:' ? ' (tip: serving the file locally avoids file:// CORS limits)' : '');
-    }
-  }
-  async function aiCall(prov, key, base, model, prompt) {
-    if(prov === 'anthropic') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: JSON.stringify({ model: model || 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: prompt }] })
-      });
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      const j = await res.json();
-      return (j.content && j.content[0] && j.content[0].text) || '(no content)';
-    }
-    const url = (prov === 'compatible' && base ? base.replace(/\/$/,'') : 'https://api.openai.com/v1') + '/chat/completions';
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + key },
-      body: JSON.stringify({ model: model || 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }] })
-    });
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    const j = await res.json();
-    return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '(no content)';
-  }
-
   // === INSERT / EDIT: HYPERLINK ===
   btnInsertLink.addEventListener('click', () => {
     if(!iframeDoc || !loaded) return;
@@ -2976,8 +2575,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       caretTarget.focus && caretTarget.focus();
     } catch(ex) {}
     closeSlash();
-    if(doc === document) { try { localStorage.setItem('vhe_reflection_notes', reflectionBody.innerHTML); } catch(ex){} }
-    else saveState();
+    saveState();
   }
 
   function initSlashMenu(idoc, offsetFn) {
@@ -3028,8 +2626,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   // Mouse pick: mousedown keeps the editable focused (no blur), click inserts.
   slashMenu.addEventListener('mousedown', (e) => { if(e.target.closest('button')) e.preventDefault(); });
   slashMenu.addEventListener('click', (e) => { const b = e.target.closest('button'); if(b) insertBlock(b.dataset.block); });
-  // Bind the slash engine to the parent document so it also works in the reflection panel.
-  initSlashMenu(document, () => ({ left: 0, top: 0 }));
 
   // === INSERT: TABLE ===
   // Build table grid picker
@@ -3574,20 +3170,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     iframeDoc.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
     iframeDoc.querySelectorAll('[data-editor-selected]').forEach(el => el.removeAttribute('data-editor-selected'));
 
-    // Embed reflection notes so they travel with the exported file
-    let reflectionAside = null;
-    const reflectionHTML = (reflectionBody.innerHTML || '').trim();
-    if(reflectionHTML && reflectionHTML !== '<br>') {
-      iframeDoc.querySelectorAll('[data-editor-reflection]').forEach(a => a.remove());
-      reflectionAside = iframeDoc.createElement('aside');
-      reflectionAside.setAttribute('data-editor-reflection', '1');
-      reflectionAside.style.cssText = 'margin:40px auto;max-width:720px;padding:18px 22px;border:1px solid #CCCCCC;border-radius:6px;background:#FAFAF8;font-family:system-ui,-apple-system,sans-serif;color:#0A0A0A;';
-      reflectionAside.innerHTML = '<div style="font-size:10px;letter-spacing:1.5px;color:#666;font-weight:600;margin-bottom:8px">REFLECTION</div>' + reflectionBody.innerHTML;
-      iframeDoc.body.appendChild(reflectionAside);
-    }
-
     let html = '<!DOCTYPE html>\n' + iframeDoc.documentElement.outerHTML;
-    if(reflectionAside) reflectionAside.remove();
     // Restore
     if(selEl) {
       selEl.style.outline = origOutline;
