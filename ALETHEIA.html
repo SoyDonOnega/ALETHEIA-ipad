@@ -681,7 +681,19 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   let pendingSelect = null; // { el, x, y } — el null when press landed on bare canvas
 
   // === DOM REFS ===
-  const iframe = document.getElementById('content-iframe');
+  let iframe = document.getElementById('content-iframe');
+  // A loaded document's own inline scripts often declare top-level let/const.
+  // document.open()/write()/close() on the SAME iframe reuses its existing
+  // Window, so a second load re-declares those bindings and throws a
+  // SyntaxError that silently kills the whole script (nothing after it runs).
+  // Swapping in a brand-new <iframe> gives every load a fresh global scope.
+  function replaceIframe() {
+    const next = document.createElement('iframe');
+    next.id = 'content-iframe';
+    iframe.parentNode.replaceChild(next, iframe);
+    iframe = next;
+    return iframe;
+  }
   const iframeOverlay = document.getElementById('iframe-overlay');
   const welcomeOverlay = document.getElementById('welcome-overlay');
   const panel = document.getElementById('panel');
@@ -927,6 +939,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       }
     }
     try {
+      replaceIframe();
       iframe.onload = initAfterLoad;
       // document.open() may replace the contentDocument object, making any previously
       // cached reference stale. Re-read after open() so write() targets the live document.
@@ -3206,6 +3219,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       } catch(ex) { console.error('Error al restaurar:', ex); }
     }
     try {
+      replaceIframe();
       iframe.onload = afterRestore;
       iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
       iframeDoc.open();
