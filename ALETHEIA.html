@@ -209,8 +209,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 
 
 /* Rotation handle */
-.__editor-rotate-handle__ { position: absolute; top: -30px; left: calc(50% - 6px); width: 12px; height: 12px; background: #0A0A0A; border: 2px solid #fff; border-radius: 50%; cursor: grab; z-index: 99999; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-.__editor-rotate-handle__:hover { background: #333333; transform: scale(1.2); }
 .__editor-rotate-line__ { position: absolute; top: -20px; left: calc(50% - 0.5px); width: 1px; height: 20px; background: #0A0A0A; z-index: 99998; pointer-events: none; }
 
 /* Ensure SVG inside shapes doesn't capture pointer events */
@@ -304,6 +302,15 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
             Delete
           </button>
           <span class="ribbon-group-label">Clipboard</span>
+        </div>
+      </div>
+      <div class="ribbon-group">
+        <div class="rg-wrap">
+          <button class="rb-btn rb-btn-sm" id="btn-multiselect" disabled="" title="Multi-select mode — tap objects to add/remove from selection">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+            Multi-select
+          </button>
+          <span class="ribbon-group-label">Selection</span>
         </div>
       </div>
       <div class="ribbon-group">
@@ -679,6 +686,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   let marqueeEl = null;
   // Deferred select: press decides on mouseup (click = select/deselect, drag = marquee)
   let pendingSelect = null; // { el, x, y } — el null when press landed on bare canvas
+  // Touch-only stand-in for the ctrl/cmd-click multi-select modifier (no keyboard on iPad)
+  let multiSelectMode = false;
 
   // === DOM REFS ===
   let iframe = document.getElementById('content-iframe');
@@ -743,6 +752,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   const btnRotateRight = document.getElementById('btn-rotate-right');
   const btnFlipH = document.getElementById('btn-flip-h');
   const btnGridToggle = document.getElementById('btn-grid-toggle');
+  const btnMultiSelect = document.getElementById('btn-multiselect');
   const imgAddInput = document.getElementById('img-add-input');
   const imgReplaceInput = document.getElementById('img-replace-input');
   const btnReplaceImg = document.getElementById('btn-replace-img');
@@ -786,7 +796,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     panelDragStart.y = e.clientY;
     panelDragStart.left = parseInt(panel.style.left) || 0;
     panelDragStart.top = parseInt(panel.style.top) || 0;
-    panelDragHandle.setPointerCapture(e.pointerId);
+    try { panelDragHandle.setPointerCapture(e.pointerId); } catch(ex) {}
     e.preventDefault();
   });
 
@@ -855,7 +865,11 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       : 'Browse mode — click the document menu to move between sections';
     modeIndicator.style.opacity = '1';
     setTimeout(() => { modeIndicator.style.opacity = '0'; }, 3500);
-    if(!toEdit) deselectElement();
+    if(!toEdit) {
+      deselectElement();
+      multiSelectMode = false;
+      btnMultiSelect.classList.remove('active');
+    }
     updateInsertButtons();
   }
 
@@ -866,6 +880,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     btnInsertImage.disabled = !loaded;
     btnInsertTable.disabled = !loaded;
     btnInsertNote.disabled = !loaded;
+    btnMultiSelect.disabled = !loaded;
     btnInsertHighlight.disabled = !loaded;
     btnInsertPencil.disabled = !loaded;
     btnInsertEraser.disabled = !loaded;
@@ -917,6 +932,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     deselectElement();
     selectedEls = [];
     if(drawTool) setDrawTool(null);
+    multiSelectMode = false;
+    btnMultiSelect.classList.remove('active');
 
     function initAfterLoad() {
       try {
@@ -962,7 +979,10 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     if(!iframeDoc.getElementById('__editor-styles__')) {
       const style = iframeDoc.createElement('style');
       style.id = '__editor-styles__';
-      style.textContent = '.__editor-resize-handle__{position:absolute;width:8px;height:8px;background:#0A0A0A;border:1px solid #fff;border-radius:1px;z-index:99999;box-sizing:border-box;}.__editor-rotate-handle__{position:absolute;top:-30px;left:calc(50% - 6px);width:12px;height:12px;background:#0A0A0A;border:2px solid #fff;border-radius:50%;cursor:grab;z-index:99999;box-shadow:0 1px 3px rgba(0,0,0,0.3);}.__editor-rotate-handle__:hover{background:#333333;transform:scale(1.2);}.__editor-rotate-line__{position:absolute;top:-20px;left:calc(50% - 0.5px);width:1px;height:20px;background:#0A0A0A;z-index:99998;pointer-events:none;}[data-editor-object] svg{pointer-events:none;}[data-editor-object] img{pointer-events:none;}[contenteditable=true]{outline:none !important;}[data-editor-selected]{outline:2px dashed #666666 !important;outline-offset:2px !important;}';
+      // Handles are a transparent, touch-sized hit target (JS sets width/height/top/left
+      // per instance) wrapping a small visual dot sized/colored here — keeps the dot
+      // small and precise while the tappable/clickable area is much bigger.
+      style.textContent = '.__editor-resize-handle__{position:absolute;background:transparent;z-index:99999;pointer-events:auto;box-sizing:border-box;}.__editor-resize-dot__{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:8px;height:8px;background:#0A0A0A;border:1px solid #fff;border-radius:1px;box-sizing:border-box;pointer-events:none;}.__editor-rotate-handle__{position:absolute;background:transparent;cursor:grab;z-index:99999;pointer-events:auto;}.__editor-rotate-dot__{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:12px;height:12px;background:#0A0A0A;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);pointer-events:none;}.__editor-rotate-handle__:hover .__editor-rotate-dot__{background:#333333;transform:translate(-50%,-50%) scale(1.2);}.__editor-rotate-line__{position:absolute;top:-20px;left:calc(50% - 0.5px);width:1px;height:20px;background:#0A0A0A;z-index:99998;pointer-events:none;}[data-editor-object] svg{pointer-events:none;}[data-editor-object] img{pointer-events:none;}[contenteditable=true]{outline:none !important;}[data-editor-selected]{outline:2px dashed #666666 !important;outline-offset:2px !important;}';
       (iframeDoc.head || iframeDoc.documentElement).appendChild(style);
     }
     // Link handling: never let a link navigate (and replace) the iframe document.
@@ -1099,7 +1119,13 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   // === EDIT MODE: CLICK CAPTURE ===
   iframeOverlay.addEventListener('pointerdown', (e) => {
     if(!editMode || !iframeDoc) return;
-    if(e.pointerType !== 'mouse') iframeOverlay.setPointerCapture(e.pointerId);
+    // Palm rejection: while a draw tool is active, only the Pencil (or a mouse,
+    // for desktop) may draw — a resting finger must not hijack the stroke.
+    if(drawTool && e.pointerType === 'touch') return;
+    // Best-effort: capture keeps this same pointer's events routed here even if
+    // it drifts outside the overlay mid-gesture. Never let a capture failure
+    // (e.g. no genuinely active pointer session) block the interaction itself.
+    if(e.pointerType !== 'mouse') { try { iframeOverlay.setPointerCapture(e.pointerId); } catch(ex) {} }
     closeAllPopups();
     const rect = iframe.getBoundingClientRect();
     const x = (e.clientX - rect.left) / canvasScale;
@@ -1198,8 +1224,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     }
 
     if(targetEl && targetEl !== iframeDoc.documentElement && targetEl !== iframeDoc.body && !targetEl.classList.contains('__editor-resize-handle__')) {
-      // Ctrl/Cmd multi-selection
-      if(e.ctrlKey || e.metaKey) {
+      // Ctrl/Cmd multi-selection (or the touch-only Multi-select toggle)
+      if(e.ctrlKey || e.metaKey || multiSelectMode) {
         // Toggle selection on this element
         const idx = selectedEls.indexOf(targetEl);
         if(idx !== -1) {
@@ -1283,6 +1309,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     if(!editMode) return;
     // Annotation tools: extend the stroke, or keep erasing
     if(drawTool) {
+      if(e.pointerType === 'touch') return;
       const rect = iframe.getBoundingClientRect();
       const sx = (e.clientX - rect.left) / canvasScale + (iframe.contentWindow.scrollX || 0);
       const sy = (e.clientY - rect.top) / canvasScale + (iframe.contentWindow.scrollY || 0);
@@ -1396,8 +1423,9 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     }
   });
 
-  iframeOverlay.addEventListener('pointerup', () => {
+  iframeOverlay.addEventListener('pointerup', (e) => {
     if(drawTool) {
+      if(e.pointerType === 'touch') return;
       if(drawTool === 'eraser') { if(erasing) { erasing = false; saveState(); } }
       else if(curStroke) { curStroke = null; curPts = ''; saveState(); }
       return;
@@ -1948,6 +1976,12 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   }
 
 
+
+  // === TOUCH MULTI-SELECT (stand-in for the ctrl/cmd-click modifier; no keyboard on iPad) ===
+  btnMultiSelect.addEventListener('click', () => {
+    multiSelectMode = !multiSelectMode;
+    btnMultiSelect.classList.toggle('active', multiSelectMode);
+  });
 
   // === GRID & SNAP ===
   btnGridToggle.addEventListener('click', () => {
@@ -3022,6 +3056,10 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     // Place handles in an external overlay to avoid any layout impact.
     const useOverlay = isFlowElement(selectedEl);
 
+    // Touch-sized hit target, clamped so handles don't fully overlap on tiny
+    // elements (same clamp — and same risk — for mouse and touch alike).
+    function hitSizeFor(w, h) { return Math.max(24, Math.min(44, Math.min(w, h) * 0.6)); }
+
     if(useOverlay) {
       // Create an overlay container that floats OUTSIDE the element
       // positioned absolutely relative to the iframe body
@@ -3038,24 +3076,30 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       const left = elRect.left + scrollX;
       const w = elRect.width;
       const h = elRect.height;
+      const hit = hitSizeFor(w, h), half = hit / 2;
 
       const positions = ['nw','ne','sw','se','n','s','e','w'];
       positions.forEach(pos => {
         const handle = iframeDoc.createElement('div');
         handle.dataset.resizeHandle = pos;
         handle.className = '__editor-resize-handle__';
-        handle.style.cssText = 'position:absolute;width:8px;height:8px;background:#0A0A0A;border:1px solid #fff;border-radius:1px;z-index:99999;pointer-events:auto;box-sizing:border-box;';
-        // Position handles around the element's rect
+        handle.style.width = hit + 'px';
+        handle.style.height = hit + 'px';
+        // Position handles around the element's rect — anchor point (edge/corner/
+        // midpoint) unchanged, only the hit box drawn around it grows.
         let hTop = 0, hLeft = 0;
-        if(pos.includes('n')) hTop = top - 4;
-        if(pos.includes('s')) hTop = top + h - 4;
-        if(pos === 'e' || pos === 'w') hTop = top + h/2 - 4;
-        if(pos.includes('w')) hLeft = left - 4;
-        if(pos.includes('e')) hLeft = left + w - 4;
-        if(pos === 'n' || pos === 's') hLeft = left + w/2 - 4;
+        if(pos.includes('n')) hTop = top - half;
+        if(pos.includes('s')) hTop = top + h - half;
+        if(pos === 'e' || pos === 'w') hTop = top + h/2 - half;
+        if(pos.includes('w')) hLeft = left - half;
+        if(pos.includes('e')) hLeft = left + w - half;
+        if(pos === 'n' || pos === 's') hLeft = left + w/2 - half;
         handle.style.top = hTop + 'px';
         handle.style.left = hLeft + 'px';
         handle.style.cursor = pos + '-resize';
+        const dot = iframeDoc.createElement('div');
+        dot.className = '__editor-resize-dot__';
+        handle.appendChild(dot);
         overlay.appendChild(handle);
       });
 
@@ -3067,14 +3111,19 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       rotLine.style.left = (left + w/2) + 'px';
       overlay.appendChild(rotLine);
 
-      // Add rotation handle
+      // Add rotation handle — visual dot stays centered 30px above the element,
+      // same anchor as before, just a bigger hit box around it.
       const rotHandle = iframeDoc.createElement('div');
       rotHandle.className = '__editor-rotate-handle__';
       rotHandle.dataset.rotateHandle = '1';
       rotHandle.title = 'Arrastrar para rotar (Shift = pasos de 15°)';
-      rotHandle.style.cssText = 'position:absolute;width:12px;height:12px;background:#0A0A0A;border:2px solid #fff;border-radius:50%;cursor:grab;z-index:99999;box-shadow:0 1px 3px rgba(0,0,0,0.3);pointer-events:auto;';
-      rotHandle.style.top = (top - 30 - 6) + 'px';
-      rotHandle.style.left = (left + w/2 - 6) + 'px';
+      rotHandle.style.width = hit + 'px';
+      rotHandle.style.height = hit + 'px';
+      rotHandle.style.top = (top - 30 - half) + 'px';
+      rotHandle.style.left = (left + w/2 - half) + 'px';
+      const rotDot = iframeDoc.createElement('div');
+      rotDot.className = '__editor-rotate-dot__';
+      rotHandle.appendChild(rotDot);
       overlay.appendChild(rotHandle);
 
     } else {
@@ -3082,30 +3131,45 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       if(!selectedEl.style.position || selectedEl.style.position === 'static') {
         selectedEl.style.position = 'relative';
       }
+      const er = selectedEl.getBoundingClientRect();
+      const hit = hitSizeFor(er.width, er.height), half = hit / 2;
       const positions = ['nw','ne','sw','se','n','s','e','w'];
       positions.forEach(pos => {
         const h = iframeDoc.createElement('div');
         h.dataset.resizeHandle = pos;
         h.className = '__editor-resize-handle__';
-        h.style.cssText = 'position:absolute;width:8px;height:8px;background:#0A0A0A;border:1px solid #fff;border-radius:1px;z-index:99999;pointer-events:auto;box-sizing:border-box;';
-        if(pos.includes('n')) h.style.top = '-4px';
-        if(pos.includes('s')) h.style.bottom = '-4px';
-        if(pos === 'n' || pos === 's') { h.style.left = 'calc(50% - 4px)'; }
-        if(pos.includes('w')) h.style.left = '-4px';
-        if(pos.includes('e')) h.style.right = '-4px';
-        if(pos === 'e' || pos === 'w') { h.style.top = 'calc(50% - 4px)'; }
+        h.style.width = hit + 'px';
+        h.style.height = hit + 'px';
+        if(pos.includes('n')) h.style.top = -half + 'px';
+        if(pos.includes('s')) h.style.bottom = -half + 'px';
+        if(pos === 'n' || pos === 's') { h.style.left = 'calc(50% - ' + half + 'px)'; }
+        if(pos.includes('w')) h.style.left = -half + 'px';
+        if(pos.includes('e')) h.style.right = -half + 'px';
+        if(pos === 'e' || pos === 'w') { h.style.top = 'calc(50% - ' + half + 'px)'; }
         h.style.cursor = pos + '-resize';
+        const dot = iframeDoc.createElement('div');
+        dot.className = '__editor-resize-dot__';
+        h.appendChild(dot);
         selectedEl.appendChild(h);
       });
-      // Add rotation connector line
+      // Add rotation connector line (position/size come from the stylesheet, unchanged)
       const rotLine = iframeDoc.createElement('div');
       rotLine.className = '__editor-rotate-line__';
       selectedEl.appendChild(rotLine);
-      // Add rotation handle
+      // Add rotation handle — old CSS-only anchor was a 12px box at top:-30px
+      // (box center 24px above the element); reproduce that same center, just
+      // with a bigger hit box around it.
       const rotHandle = iframeDoc.createElement('div');
       rotHandle.className = '__editor-rotate-handle__';
       rotHandle.dataset.rotateHandle = '1';
       rotHandle.title = 'Arrastrar para rotar (Shift = pasos de 15°)';
+      rotHandle.style.width = hit + 'px';
+      rotHandle.style.height = hit + 'px';
+      rotHandle.style.top = (-24 - half) + 'px';
+      rotHandle.style.left = 'calc(50% - ' + half + 'px)';
+      const rotDot = iframeDoc.createElement('div');
+      rotDot.className = '__editor-rotate-dot__';
+      rotHandle.appendChild(rotDot);
       selectedEl.appendChild(rotHandle);
     }
   }
@@ -3132,21 +3196,28 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     const left = elRect.left + (iframe.contentWindow.scrollX || 0);
     const w = elRect.width, h = elRect.height;
     overlay.querySelectorAll('.__editor-resize-handle__').forEach(handle => {
+      // Re-use whatever hit size addResizeHandles() clamped to at creation time,
+      // rather than re-deriving it, so this can never drift out of sync.
+      const half = parseFloat(handle.style.width) / 2 || 4;
       const pos = handle.dataset.resizeHandle;
       let hTop = 0, hLeft = 0;
-      if(pos.includes('n')) hTop = top - 4;
-      if(pos.includes('s')) hTop = top + h - 4;
-      if(pos === 'e' || pos === 'w') hTop = top + h/2 - 4;
-      if(pos.includes('w')) hLeft = left - 4;
-      if(pos.includes('e')) hLeft = left + w - 4;
-      if(pos === 'n' || pos === 's') hLeft = left + w/2 - 4;
+      if(pos.includes('n')) hTop = top - half;
+      if(pos.includes('s')) hTop = top + h - half;
+      if(pos === 'e' || pos === 'w') hTop = top + h/2 - half;
+      if(pos.includes('w')) hLeft = left - half;
+      if(pos.includes('e')) hLeft = left + w - half;
+      if(pos === 'n' || pos === 's') hLeft = left + w/2 - half;
       handle.style.top = hTop + 'px';
       handle.style.left = hLeft + 'px';
     });
     const rotLine = overlay.querySelector('.__editor-rotate-line__');
     if(rotLine) { rotLine.style.top = (top - 20) + 'px'; rotLine.style.left = (left + w/2) + 'px'; }
     const rotHandle = overlay.querySelector('.__editor-rotate-handle__');
-    if(rotHandle) { rotHandle.style.top = (top - 30 - 6) + 'px'; rotHandle.style.left = (left + w/2 - 6) + 'px'; }
+    if(rotHandle) {
+      const rHalf = parseFloat(rotHandle.style.width) / 2 || 6;
+      rotHandle.style.top = (top - 30 - rHalf) + 'px';
+      rotHandle.style.left = (left + w/2 - rHalf) + 'px';
+    }
   }
 
   // === HISTORY ===
