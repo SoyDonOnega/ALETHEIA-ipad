@@ -1574,7 +1574,20 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       }
       return;
     }
-    if(isDragging) { isDragging = false; hideSmartGuides(); saveState(); updatePanel(); if(selectedEl) addResizeHandles(); }
+    if(isDragging) {
+      // Touch/pen: a tap on an already-selected single element, with no real
+      // movement, enters text editing directly. A real double-tap can never
+      // reach the dblclick listener here — the first tap selects the element,
+      // and this second tap lands in the "already selected" branch above,
+      // which calls e.preventDefault() to arm the drag; on touch that
+      // preventDefault() suppresses the synthetic click Safari would otherwise
+      // derive from the tap, so no click ever fires and dblclick can't compose
+      // from two clicks. Mouse is unaffected (dblclick fires natively there).
+      const movedDist = Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y);
+      const isTapNotDrag = e.pointerType !== 'mouse' && movedDist < 8 && dragStart.positions && dragStart.positions.length === 1;
+      isDragging = false; hideSmartGuides(); saveState(); updatePanel(); if(selectedEl) addResizeHandles();
+      if(isTapNotDrag) enterTextEditAt(e.clientX, e.clientY);
+    }
     if(isResizing) {
       isResizing = false;
       // If a placeholder was used (flow element resize), update placeholder to match new size
@@ -1635,12 +1648,17 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     e.preventDefault();
   }, { passive: false });
 
-  // Double-click to edit text
+  // Double-click to edit text (mouse) — shares its body with the touch/pen
+  // tap-to-edit path below via enterTextEditAt, since a real double-tap can't
+  // reach this listener on touch (see the pointerup comment for why).
   iframeOverlay.addEventListener('dblclick', (e) => {
+    enterTextEditAt(e.clientX, e.clientY);
+  });
+  function enterTextEditAt(clientX, clientY) {
     if(!editMode || !iframeDoc) return;
     const rect = iframe.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / canvasScale;
-    const y = (e.clientY - rect.top) / canvasScale;
+    const x = (clientX - rect.left) / canvasScale;
+    const y = (clientY - rect.top) / canvasScale;
     const rawEl = iframeDoc.elementFromPoint(x, y);
     // For shapes/editor objects, find the wrapper
     const selEl = findSelectable(rawEl) || rawEl;
@@ -1759,7 +1777,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       };
       textTarget.addEventListener('blur', onBlur);
     }
-  });
+  }
 
   // === SELECTION ===
   const sectionTable = document.getElementById('section-table');
@@ -2487,7 +2505,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     const ntext = iframeDoc.createElement('div');
     ntext.className = '__note-text__';
     ntext.style.cssText = 'width:100%;text-align:center;outline:none;word-break:break-word;white-space:pre-wrap;';
-    ntext.textContent = 'Note';
+    ntext.textContent = '';
     note.appendChild(ntext);
     getInsertTarget().appendChild(note);
     selectElement(note);
