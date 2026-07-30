@@ -1204,7 +1204,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
           svg.appendChild(lassoPathEl);
         }
       }
-      else { startStroke(sx, sy); }
+      else { startStroke(sx, sy, findSelectable(el)); }
       e.preventDefault(); return;
     }
 
@@ -1547,7 +1547,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
         }
         lassoPointerId = null;
       }
-      else if(curStroke) { curStroke = null; curPts = ''; saveState(); }
+      else if(curStroke) { curStroke = null; curPts = ''; curStrokeOwner = null; saveState(); }
       return;
     }
     if(pendingSelect) {
@@ -1922,7 +1922,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   // so this stays isolated from that already-shipped, already-tested handler.
   function finalizeGesture() {
     if(drawTool === 'eraser' && erasing) { erasing = false; saveState(); }
-    else if(curStroke) { curStroke = null; curPts = ''; saveState(); }
+    else if(curStroke) { curStroke = null; curPts = ''; curStrokeOwner = null; saveState(); }
     if(lassoPathEl) { lassoPathEl.remove(); lassoPathEl = null; }
     if(lassoDragStart) {
       // Discard the partial move rather than trying to bake a final position —
@@ -2500,6 +2500,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   let markerColor = '#FFE45C', markerWidth = 16;
   let eraserWidth = 28;            // eraser diameter in px (3 presets: 14 / 28 / 48)
   let curStroke = null, curPts = '', erasing = false;
+  let curStrokeOwner = null; // the data-editor-object element the in-progress stroke belongs to, or null
   let lassoPathEl = null;     // visual feedback <path> while drawing the loop
   let lassoSelection = [];    // array of selected <path data-annot> stroke elements
   let lassoBoxEl = null;      // visual dashed <rect> around the selection's union bbox
@@ -2529,7 +2530,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 
   function setDrawTool(tool) {
     drawTool = tool;
-    curStroke = null; curPts = ''; erasing = false; // always reset on tool change
+    curStroke = null; curPts = ''; erasing = false; curStrokeOwner = null; // always reset on tool change
     btnInsertPencil.classList.toggle('active', tool === 'pen');
     btnInsertHighlight.classList.toggle('active', tool === 'marker');
     btnInsertEraser.classList.toggle('active', tool === 'eraser');
@@ -2549,6 +2550,57 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       iframeDoc.body.appendChild(svg);
     }
     return svg;
+  }
+
+  // Converts a resolved document-space point (already canvasScale-divided,
+  // scroll-added — same space as startStroke/extendStroke's docX/docY) into obj's
+  // own pre-transform local space, undoing its rotation and horizontal flip.
+  // Uses the object's center as the invariant reference point (rotation/flip
+  // don't move the center), and offsetWidth/offsetHeight (the true untransformed
+  // box size, not getBoundingClientRect's post-rotation bounding box).
+  function docPointToLocal(obj, docX, docY) {
+    const r = obj.getBoundingClientRect();
+    const scrollX = iframe.contentWindow.scrollX || 0, scrollY = iframe.contentWindow.scrollY || 0;
+    const cx = r.left + scrollX + r.width / 2, cy = r.top + scrollY + r.height / 2;
+    const t = obj.style.transform || '';
+    const m = t.match(/rotate\(([-\d.]+)deg\)/);
+    const angle = m ? parseFloat(m[1]) : 0;
+    const flipped = t.indexOf('scaleX(-1)') !== -1;
+    let dx = docX - cx, dy = docY - cy;
+    if(angle) {
+      const rad = -angle * Math.PI / 180;
+      const ux = dx * Math.cos(rad) - dy * Math.sin(rad);
+      const uy = dx * Math.sin(rad) + dy * Math.cos(rad);
+      dx = ux; dy = uy;
+    }
+    if(flipped) dx = -dx;
+    return { x: dx + obj.offsetWidth / 2, y: dy + obj.offsetHeight / 2 };
+  }
+
+  // Ink attached to an object lives in a child <svg class="__ink-layer__"> (no id,
+  // so copy/paste/duplicate's cloneNode(true) never produces duplicate ids) sized
+  // to the object's own box, so it inherits the object's position/rotation for free.
+  function getOrCreateInkLayer(obj) {
+    for(let i = 0; i < obj.children.length; i++) {
+      const c = obj.children[i];
+      if(c.tagName === 'svg' && c.classList.contains('__ink-layer__')) return c;
+    }
+    const svg = iframeDoc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', '__ink-layer__');
+    svg.setAttribute('style', 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;');
+    obj.appendChild(svg);
+    return svg;
+  }
+
+  function allInkOwners() {
+    const out = [];
+    iframeDoc.querySelectorAll('[data-editor-object]').forEach(obj => {
+      for(let i = 0; i < obj.children.length; i++) {
+        const c = obj.children[i];
+        if(c.tagName === 'svg' && c.classList.contains('__ink-layer__')) { out.push({ obj, svg: c }); break; }
+      }
+    });
+    return out;
   }
 
   // Pencil → pen mode (+ color/size menu); click again toggles off
@@ -2604,9 +2656,15 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     setDrawTool('lasso');
   });
 
-  function startStroke(docX, docY) {
-    const svg = annotationLayer(); if(!svg) return;
-    curPts = 'M ' + docX + ' ' + docY;
+  function startStroke(docX, docY, owner) {
+    // Attach to owner unless it's a table — a raw <table> foster-parents a direct
+    // <svg> child out to a sibling position when re-parsed via document.write()
+    // (undo/redo, file load), so ink drawn over a table falls back to the global layer.
+    curStrokeOwner = (owner && owner.dataset && owner.dataset.editorObject && owner.tagName !== 'TABLE') ? owner : null;
+    const svg = curStrokeOwner ? getOrCreateInkLayer(curStrokeOwner) : annotationLayer();
+    if(!svg) { curStrokeOwner = null; return; }
+    const p = curStrokeOwner ? docPointToLocal(curStrokeOwner, docX, docY) : { x: docX, y: docY };
+    curPts = 'M ' + p.x + ' ' + p.y;
     curStroke = iframeDoc.createElementNS('http://www.w3.org/2000/svg', 'path');
     curStroke.setAttribute('d', curPts);
     curStroke.setAttribute('fill', 'none');
@@ -2626,7 +2684,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   }
   function extendStroke(docX, docY) {
     if(!curStroke) return;
-    curPts += ' L ' + docX + ' ' + docY;
+    const p = curStrokeOwner ? docPointToLocal(curStrokeOwner, docX, docY) : { x: docX, y: docY };
+    curPts += ' L ' + p.x + ' ' + p.y;
     curStroke.setAttribute('d', curPts);
   }
   // Parse a stroke "d" ("M x y L x y ... [M x y L x y ...]") into sub-paths of [x,y] points.
@@ -2648,35 +2707,45 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   // Area eraser: removes only the portion of each stroke within `eraserWidth` of the
   // cursor (splitting a stroke into pieces), instead of deleting the whole stroke.
   function eraseAt(docX, docY) {
-    const svg = iframeDoc.getElementById('annotation-pen-layer'); if(!svg) return false;
     const r = Math.max(4, eraserWidth / 2), r2 = r * r;
     let removed = false;
-    [...svg.querySelectorAll('path')].forEach(p => {
-      let bb; try { bb = p.getBBox(); } catch(e) { bb = null; }
-      if(bb && (docX < bb.x - r || docX > bb.x + bb.width + r || docY < bb.y - r || docY > bb.y + bb.height + r)) return;
-      const subs = parseStrokePath(p.getAttribute('d'));
-      const runs = []; let any = false; let cur = [];
-      const pushPt = (x, y) => {
-        const dx = x - docX, dy = y - docY;
-        if(dx*dx + dy*dy <= r2) { any = true; if(cur.length >= 2) runs.push(cur); cur = []; }
-        else cur.push([x, y]);
-      };
-      subs.forEach(pts => {
+    // Splits each stroke's `d` into surviving runs outside radius r of (x,y) in
+    // svg's own coordinate space — identical logic for the global layer (identity
+    // coords) and an object's ink layer (coords pre-converted by the caller).
+    function scrubSVG(svg, x, y) {
+      [...svg.querySelectorAll('path')].forEach(p => {
+        let bb; try { bb = p.getBBox(); } catch(e) { bb = null; }
+        if(bb && (x < bb.x - r || x > bb.x + bb.width + r || y < bb.y - r || y > bb.y + bb.height + r)) return;
+        const subs = parseStrokePath(p.getAttribute('d'));
+        const runs = []; let any = false; let cur = [];
+        const pushPt = (px, py) => {
+          const dx = px - x, dy = py - y;
+          if(dx*dx + dy*dy <= r2) { any = true; if(cur.length >= 2) runs.push(cur); cur = []; }
+          else cur.push([px, py]);
+        };
+        subs.forEach(pts => {
+          if(cur.length >= 2) runs.push(cur);
+          cur = [];
+          if(pts.length === 1) { pushPt(pts[0][0], pts[0][1]); return; }
+          for(let i = 0; i < pts.length - 1; i++) {
+            const a = pts[i], b = pts[i+1];
+            const steps = Math.max(1, Math.ceil(Math.hypot(b[0]-a[0], b[1]-a[1]) / 4));
+            for(let s = 0; s < steps; s++) { const t = s / steps; pushPt(a[0] + (b[0]-a[0])*t, a[1] + (b[1]-a[1])*t); }
+          }
+          pushPt(pts[pts.length-1][0], pts[pts.length-1][1]);
+        });
         if(cur.length >= 2) runs.push(cur);
-        cur = [];
-        if(pts.length === 1) { pushPt(pts[0][0], pts[0][1]); return; }
-        for(let i = 0; i < pts.length - 1; i++) {
-          const a = pts[i], b = pts[i+1];
-          const steps = Math.max(1, Math.ceil(Math.hypot(b[0]-a[0], b[1]-a[1]) / 4));
-          for(let s = 0; s < steps; s++) { const t = s / steps; pushPt(a[0] + (b[0]-a[0])*t, a[1] + (b[1]-a[1])*t); }
-        }
-        pushPt(pts[pts.length-1][0], pts[pts.length-1][1]);
+        if(!any) return;
+        removed = true;
+        if(!runs.length) { p.remove(); return; }
+        p.setAttribute('d', runs.map(run => 'M ' + run.map(pt => pt[0].toFixed(1) + ' ' + pt[1].toFixed(1)).join(' L ')).join(' '));
       });
-      if(cur.length >= 2) runs.push(cur);
-      if(!any) return;
-      removed = true;
-      if(!runs.length) { p.remove(); return; }
-      p.setAttribute('d', runs.map(run => 'M ' + run.map(pt => pt[0].toFixed(1) + ' ' + pt[1].toFixed(1)).join(' L ')).join(' '));
+    }
+    const global = iframeDoc.getElementById('annotation-pen-layer');
+    if(global) scrubSVG(global, docX, docY);
+    allInkOwners().forEach(({ obj, svg }) => {
+      const local = docPointToLocal(obj, docX, docY);
+      scrubSVG(svg, local.x, local.y);
     });
     return removed;
   }
@@ -3571,7 +3640,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     // The iframe (and its whole document) is about to be discarded and replaced
     // below — drop any JS references into it so nothing acts on dangling nodes.
     lassoPathEl = null; lassoSelection = []; lassoBoxEl = null; lassoDragStart = null; lassoPointerId = null;
-    curStroke = null; curPts = ''; erasing = false;
+    curStroke = null; curPts = ''; erasing = false; curStrokeOwner = null;
     const histHTML = history[historyIndex];
     function afterRestore() {
       try {
