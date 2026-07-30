@@ -369,6 +369,10 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 21h13"></path><path d="M5 14l6-6 7 7-5 5H8z"></path><path d="M9 6l7 7"></path></svg>
             Eraser
           </button>
+          <button class="rb-btn" id="btn-insert-lasso" disabled="" title="Lasso — select ink strokes to move them">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3C7 3 3 6.5 3 10.5c0 3 2 5.5 5 6.3L7 21l3.5-2.2c.5.1 1 .1 1.5.1 5 0 9-3.5 9-7.5S17 3 12 3z"></path><circle cx="7.5" cy="17" r="1.4" fill="currentColor" stroke="none"></circle></svg>
+            Lasso
+          </button>
           <span class="ribbon-group-label">Annotate</span>
         </div>
       </div>
@@ -742,6 +746,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   const btnInsertHighlight = document.getElementById('btn-insert-highlight');
   const btnInsertPencil = document.getElementById('btn-insert-pencil');
   const btnInsertEraser = document.getElementById('btn-insert-eraser');
+  const btnInsertLasso = document.getElementById('btn-insert-lasso');
   const btnInsertLink = document.getElementById('btn-insert-link');
   const noteMenu = document.getElementById('note-menu');
   const slashMenu = document.getElementById('slash-menu');
@@ -894,6 +899,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     btnInsertHighlight.disabled = !loaded;
     btnInsertPencil.disabled = !loaded;
     btnInsertEraser.disabled = !loaded;
+    btnInsertLasso.disabled = !loaded;
     btnInsertLink.disabled = !loaded;
   }
 
@@ -942,6 +948,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     deselectElement();
     selectedEls = [];
     if(drawTool) setDrawTool(null);
+    lassoPathEl = null; lassoDragStart = null; lassoPointerId = null;
     multiSelectMode = false;
     btnMultiSelect.classList.remove('active');
     canvasScale = 1; canvasPanX = 0; canvasPanY = 0;
@@ -1134,7 +1141,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     // Mid-stroke palm rejection: a resting touch while the Pencil is actively
     // drawing must still be ignored outright, not tracked as a pinch candidate —
     // only "tool selected but idle" should ever allow a 2-finger pinch to start.
-    if(e.pointerType === 'touch' && drawTool && (curStroke || erasing)) return;
+    if(e.pointerType === 'touch' && drawTool && (curStroke || erasing || lassoPathEl || lassoDragStart)) return;
     // Best-effort: capture keeps this same pointer's events routed here even if
     // it drifts outside the overlay mid-gesture. Never let a capture failure
     // (e.g. no genuinely active pointer session) block the interaction itself.
@@ -1170,6 +1177,26 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       const sx = x + (iframe.contentWindow.scrollX || 0);
       const sy = y + (iframe.contentWindow.scrollY || 0);
       if(drawTool === 'eraser') { erasing = true; eraseAt(sx, sy); }
+      else if(drawTool === 'lasso') {
+        lassoPointerId = e.pointerId;
+        if(lassoSelection.length && pointInLassoBox(sx, sy)) {
+          lassoDragStart = {
+            x: sx, y: sy,
+            entries: lassoSelection.map(el => ({ el, d0: el.getAttribute('d') })),
+            boxBase: { x: parseFloat(lassoBoxEl.getAttribute('x')), y: parseFloat(lassoBoxEl.getAttribute('y')) }
+          };
+        } else {
+          clearLassoSelection();
+          const svg = annotationLayer();
+          lassoPathEl = iframeDoc.createElementNS('http://www.w3.org/2000/svg', 'path');
+          lassoPathEl.setAttribute('fill', 'none');
+          lassoPathEl.setAttribute('stroke', '#666666');
+          lassoPathEl.setAttribute('stroke-dasharray', '4 3');
+          lassoPathEl.setAttribute('stroke-width', '1.5');
+          lassoPathEl.setAttribute('d', 'M ' + sx + ' ' + sy);
+          svg.appendChild(lassoPathEl);
+        }
+      }
       else { startStroke(sx, sy); }
       e.preventDefault(); return;
     }
@@ -1359,11 +1386,23 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     }
     // Annotation tools: extend the stroke, or keep erasing
     if(drawTool) {
-      if(e.pointerType === 'touch') return;
+      if(e.pointerType === 'touch' && drawTool !== 'lasso') return;
       const rect = iframe.getBoundingClientRect();
       const sx = (e.clientX - rect.left) / canvasScale + (iframe.contentWindow.scrollX || 0);
       const sy = (e.clientY - rect.top) / canvasScale + (iframe.contentWindow.scrollY || 0);
       if(drawTool === 'eraser') { if(erasing) eraseAt(sx, sy); }
+      else if(drawTool === 'lasso' && e.pointerId === lassoPointerId) {
+        if(lassoDragStart) {
+          const dx = sx - lassoDragStart.x, dy = sy - lassoDragStart.y;
+          lassoDragStart.entries.forEach(entry => entry.el.setAttribute('transform', 'translate(' + dx + ',' + dy + ')'));
+          if(lassoBoxEl) {
+            lassoBoxEl.setAttribute('x', lassoDragStart.boxBase.x + dx);
+            lassoBoxEl.setAttribute('y', lassoDragStart.boxBase.y + dy);
+          }
+        } else if(lassoPathEl) {
+          lassoPathEl.setAttribute('d', (lassoPathEl.getAttribute('d') || '') + ' L ' + sx + ' ' + sy);
+        }
+      }
       else if(curStroke) extendStroke(sx, sy);
       return;
     }
@@ -1481,8 +1520,26 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       return;
     }
     if(drawTool) {
-      if(e.pointerType === 'touch') return;
+      if(e.pointerType === 'touch' && drawTool !== 'lasso') return;
       if(drawTool === 'eraser') { if(erasing) { erasing = false; saveState(); } }
+      else if(drawTool === 'lasso' && e.pointerId === lassoPointerId) {
+        const rect = iframe.getBoundingClientRect();
+        const sx = (e.clientX - rect.left) / canvasScale + (iframe.contentWindow.scrollX || 0);
+        const sy = (e.clientY - rect.top) / canvasScale + (iframe.contentWindow.scrollY || 0);
+        if(lassoDragStart) {
+          bakeLassoDrag(sx - lassoDragStart.x, sy - lassoDragStart.y);
+          saveState();
+        } else if(lassoPathEl) {
+          const poly = parseStrokePath(lassoPathEl.getAttribute('d'))[0] || [];
+          lassoPathEl.remove(); lassoPathEl = null;
+          if(poly.length >= 3) {
+            const hits = lassoHitTest(poly);
+            if(hits.length) { lassoSelection = hits; showLassoBox(lassoUnionBBox(hits)); }
+            else clearLassoSelection();
+          } else clearLassoSelection();
+        }
+        lassoPointerId = null;
+      }
       else if(curStroke) { curStroke = null; curPts = ''; saveState(); }
       return;
     }
@@ -1859,6 +1916,16 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   function finalizeGesture() {
     if(drawTool === 'eraser' && erasing) { erasing = false; saveState(); }
     else if(curStroke) { curStroke = null; curPts = ''; saveState(); }
+    if(lassoPathEl) { lassoPathEl.remove(); lassoPathEl = null; }
+    if(lassoDragStart) {
+      // Discard the partial move rather than trying to bake a final position —
+      // there's no fresh pointer coordinate here to bake against, and reverting
+      // is simpler/safer than guessing one.
+      lassoDragStart.entries.forEach(entry => entry.el.removeAttribute('transform'));
+      if(lassoBoxEl) { lassoBoxEl.setAttribute('x', lassoDragStart.boxBase.x); lassoBoxEl.setAttribute('y', lassoDragStart.boxBase.y); }
+      lassoDragStart = null;
+    }
+    lassoPointerId = null;
     if(isMarquee) { if(marqueeEl) marqueeEl.remove(); isMarquee = false; marqueeEl = null; }
     pendingSelect = null;
     if(isDragging) { isDragging = false; hideSmartGuides(); saveState(); updatePanel(); if(selectedEl) addResizeHandles(); }
@@ -2420,11 +2487,16 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   }
 
   // === ANNOTATION TOOLS: pencil (opaque) · highlighter marker (multiply) · eraser ===
-  let drawTool = null;              // 'pen' | 'marker' | 'eraser' | null
+  let drawTool = null;              // 'pen' | 'marker' | 'eraser' | 'lasso' | null
   let penColor = '#0A0A0A', penWidth = 3;
   let markerColor = '#FFE45C', markerWidth = 16;
   let eraserWidth = 28;            // eraser diameter in px (3 presets: 14 / 28 / 48)
   let curStroke = null, curPts = '', erasing = false;
+  let lassoPathEl = null;     // visual feedback <path> while drawing the loop
+  let lassoSelection = [];    // array of selected <path data-annot> stroke elements
+  let lassoBoxEl = null;      // visual dashed <rect> around the selection's union bbox
+  let lassoDragStart = null;  // { x, y, entries: [{el, d0}], boxBase: {x,y} } while dragging
+  let lassoPointerId = null;  // the single pointerId currently driving a lasso loop-draw or drag
 
   // Build a tool-specific pointer so pen / marker / eraser are recognizable.
   // Marker is tinted with the active colour; eraser is a ring sized to eraserWidth.
@@ -2449,9 +2521,12 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 
   function setDrawTool(tool) {
     drawTool = tool;
+    curStroke = null; curPts = ''; erasing = false; // always reset on tool change
     btnInsertPencil.classList.toggle('active', tool === 'pen');
     btnInsertHighlight.classList.toggle('active', tool === 'marker');
     btnInsertEraser.classList.toggle('active', tool === 'eraser');
+    btnInsertLasso.classList.toggle('active', tool === 'lasso');
+    if(tool !== 'lasso') clearLassoSelection();
     if(tool && !editMode) switchMode(true);
     applyDrawCursor();
   }
@@ -2511,6 +2586,14 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       applyDrawCursor();
       eraserMenu.classList.remove('show');
     });
+  });
+
+  // Lasso → select ink strokes to move them (no popup menu, no color/size options)
+  btnInsertLasso.addEventListener('click', () => {
+    if(!loaded) return;
+    if(drawTool === 'lasso') { setDrawTool(null); return; }
+    closeAllPopups();
+    setDrawTool('lasso');
   });
 
   function startStroke(docX, docY) {
@@ -2588,6 +2671,93 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       p.setAttribute('d', runs.map(run => 'M ' + run.map(pt => pt[0].toFixed(1) + ' ' + pt[1].toFixed(1)).join(' L ')).join(' '));
     });
     return removed;
+  }
+
+  // === LASSO: select + move ink strokes ===
+  function clearLassoSelection() {
+    if(lassoBoxEl) { lassoBoxEl.remove(); lassoBoxEl = null; }
+    lassoSelection = [];
+  }
+
+  function pointInPolygon(x, y, poly) {
+    let inside = false;
+    for(let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+      const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if(intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  function lassoHitTest(poly) {
+    const svg = iframeDoc.getElementById('annotation-pen-layer');
+    if(!svg) return [];
+    const hits = [];
+    // Scoped to [data-annot] so this never picks up lassoPathEl itself as a candidate.
+    svg.querySelectorAll('path[data-annot]').forEach(p => {
+      const subs = parseStrokePath(p.getAttribute('d'));
+      let matched = false;
+      subs.forEach(pts => {
+        if(matched || !pts.length) return;
+        if(pts.length === 1) { if(pointInPolygon(pts[0][0], pts[0][1], poly)) matched = true; return; }
+        for(let i = 0; i < pts.length - 1 && !matched; i++) {
+          const a = pts[i], b = pts[i+1];
+          const steps = Math.max(1, Math.ceil(Math.hypot(b[0]-a[0], b[1]-a[1]) / 4));
+          for(let s = 0; s <= steps; s++) {
+            const t = s / steps;
+            if(pointInPolygon(a[0] + (b[0]-a[0])*t, a[1] + (b[1]-a[1])*t, poly)) { matched = true; break; }
+          }
+        }
+      });
+      if(matched) hits.push(p);
+    });
+    return hits;
+  }
+
+  function lassoUnionBBox(els) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    els.forEach(p => {
+      let bb; try { bb = p.getBBox(); } catch(e) { return; }
+      minX = Math.min(minX, bb.x); minY = Math.min(minY, bb.y);
+      maxX = Math.max(maxX, bb.x + bb.width); maxY = Math.max(maxY, bb.y + bb.height);
+    });
+    return { left: minX, top: minY, right: maxX, bottom: maxY };
+  }
+
+  function showLassoBox(bbox) {
+    const svg = annotationLayer();
+    if(!lassoBoxEl) {
+      lassoBoxEl = iframeDoc.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      lassoBoxEl.setAttribute('fill', 'rgba(102,102,102,0.08)');
+      lassoBoxEl.setAttribute('stroke', '#666666');
+      lassoBoxEl.setAttribute('stroke-dasharray', '4 3');
+      lassoBoxEl.setAttribute('stroke-width', '1');
+    }
+    lassoBoxEl.setAttribute('x', bbox.left);
+    lassoBoxEl.setAttribute('y', bbox.top);
+    lassoBoxEl.setAttribute('width', Math.max(0, bbox.right - bbox.left));
+    lassoBoxEl.setAttribute('height', Math.max(0, bbox.bottom - bbox.top));
+    svg.appendChild(lassoBoxEl);
+  }
+
+  function pointInLassoBox(sx, sy) {
+    if(!lassoBoxEl) return false;
+    const x = parseFloat(lassoBoxEl.getAttribute('x')), y = parseFloat(lassoBoxEl.getAttribute('y'));
+    const w = parseFloat(lassoBoxEl.getAttribute('width')), h = parseFloat(lassoBoxEl.getAttribute('height'));
+    return sx >= x && sx <= x + w && sy >= y && sy <= y + h;
+  }
+
+  // Rebuild each selected stroke's `d` at its final offset and drop the live
+  // transform — same rebuild format eraseAt already uses for multi-subpath strokes.
+  function bakeLassoDrag(dx, dy) {
+    lassoDragStart.entries.forEach(entry => {
+      const subs = parseStrokePath(entry.d0);
+      const d = subs.map(pts => 'M ' + pts.map(pt => (pt[0]+dx).toFixed(1) + ' ' + (pt[1]+dy).toFixed(1)).join(' L ')).join(' ');
+      entry.el.setAttribute('d', d);
+      entry.el.removeAttribute('transform');
+    });
+    showLassoBox(lassoUnionBBox(lassoSelection));
+    lassoDragStart = null;
   }
 
   // === INSERT / EDIT: HYPERLINK ===
@@ -3351,6 +3521,10 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     iframeDoc.querySelectorAll('.__editor-rotate-handle__, .__editor-rotate-line__').forEach(h => h.remove());
     // Remove any resize placeholders
     iframeDoc.querySelectorAll('.__editor-resize-placeholder__').forEach(h => h.remove());
+    // Detach the lasso selection box — it's a persistent UI element (like resize
+    // handles), never something that should be serialized into history/exports.
+    let lassoBoxParent = null;
+    if(lassoBoxEl && lassoBoxEl.parentNode) { lassoBoxParent = lassoBoxEl.parentNode; lassoBoxParent.removeChild(lassoBoxEl); }
     hideSmartGuides();
     // Remove grid overlay
     const gridEl = iframeDoc.getElementById('__editor-grid__');
@@ -3374,6 +3548,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       g.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:99998;background-image:linear-gradient(to right, #CCCCCC 1px, transparent 1px), linear-gradient(to bottom, #CCCCCC 1px, transparent 1px);background-size:20px 20px;';
       iframeDoc.body.appendChild(g);
     }
+    if(lassoBoxParent) lassoBoxParent.appendChild(lassoBoxEl);
     return html;
   }
 
@@ -3385,6 +3560,10 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     // Undo/redo mid-pinch is unsupported: clear it rather than leaving pinchIds
     // pointing at pointerIds that may never fire another event, wedging the canvas.
     pinchIds = null; pinchAnchor = null; activePointers.clear();
+    // The iframe (and its whole document) is about to be discarded and replaced
+    // below — drop any JS references into it so nothing acts on dangling nodes.
+    lassoPathEl = null; lassoSelection = []; lassoBoxEl = null; lassoDragStart = null; lassoPointerId = null;
+    curStroke = null; curPts = ''; erasing = false;
     const histHTML = history[historyIndex];
     function afterRestore() {
       try {
@@ -3494,6 +3673,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   btnDownload.addEventListener('click', () => {
     if(!loaded || !iframeDoc) return;
     deselectElement();
+    clearLassoSelection();
     const html = getCleanHTML();
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
