@@ -112,7 +112,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 /* Layout */
 #app { display: flex; height: calc(100vh - var(--ribbon-h)); margin-top: var(--ribbon-h); }
 #canvas-wrap { flex: 1; position: relative; overflow: hidden; background: var(--bg); }
-#content-iframe { width: 100%; height: 100%; border: none; background: #fff; }
+#content-iframe { width: 100%; height: 100%; border: none; background: #fff; position: absolute; top: 0; left: 0; transform-origin: 0 0; transform: scale(1); }
 
 /* Welcome overlay */
 #welcome-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 50; }
@@ -673,8 +673,12 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   let iframeDoc = null;
   let originalHTML = '';
   let gridVisible = false;
-  let zoomLevel = 100;
   let canvasScale = 1;
+  let canvasPanX = 0, canvasPanY = 0;
+  const activePointers = new Map(); // pointerId -> {x, y} in client coords
+  let pinchIds = null;              // [id1, id2] anchoring an active pinch, or null
+  let pinchAnchor = null;           // {contentX, contentY, startDist, startScale}
+  const MIN_SCALE = 0.5, MAX_SCALE = 4;
   let currentFileName = 'documento-editado';
   let panelHiddenDuringDrag = false;
   let clipboardEl = null;
@@ -702,6 +706,12 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     iframe.parentNode.replaceChild(next, iframe);
     iframe = next;
     return iframe;
+  }
+  const canvasWrap = document.getElementById('canvas-wrap');
+  function applyCanvasTransform() {
+    iframe.style.transform = 'scale(' + canvasScale + ')';
+    iframe.style.left = canvasPanX + 'px';
+    iframe.style.top = canvasPanY + 'px';
   }
   const iframeOverlay = document.getElementById('iframe-overlay');
   const welcomeOverlay = document.getElementById('welcome-overlay');
@@ -934,6 +944,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     if(drawTool) setDrawTool(null);
     multiSelectMode = false;
     btnMultiSelect.classList.remove('active');
+    canvasScale = 1; canvasPanX = 0; canvasPanY = 0;
+    activePointers.clear(); pinchIds = null; pinchAnchor = null;
 
     function initAfterLoad() {
       try {
@@ -1119,13 +1131,34 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   // === EDIT MODE: CLICK CAPTURE ===
   iframeOverlay.addEventListener('pointerdown', (e) => {
     if(!editMode || !iframeDoc) return;
-    // Palm rejection: while a draw tool is active, only the Pencil (or a mouse,
-    // for desktop) may draw — a resting finger must not hijack the stroke.
-    if(drawTool && e.pointerType === 'touch') return;
+    // Mid-stroke palm rejection: a resting touch while the Pencil is actively
+    // drawing must still be ignored outright, not tracked as a pinch candidate —
+    // only "tool selected but idle" should ever allow a 2-finger pinch to start.
+    if(e.pointerType === 'touch' && drawTool && (curStroke || erasing)) return;
     // Best-effort: capture keeps this same pointer's events routed here even if
     // it drifts outside the overlay mid-gesture. Never let a capture failure
     // (e.g. no genuinely active pointer session) block the interaction itself.
     if(e.pointerType !== 'mouse') { try { iframeOverlay.setPointerCapture(e.pointerId); } catch(ex) {} }
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if(activePointers.size >= 2) {
+      if(pinchIds === null) {
+        finalizeGesture();
+        const ids = [...activePointers.keys()].slice(0, 2);
+        pinchIds = ids;
+        const p1 = activePointers.get(ids[0]), p2 = activePointers.get(ids[1]);
+        const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        const wrapRect = canvasWrap.getBoundingClientRect();
+        pinchAnchor = {
+          contentX: (mid.x - wrapRect.left - canvasPanX) / canvasScale,
+          contentY: (mid.y - wrapRect.top - canvasPanY) / canvasScale,
+          startDist: Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1,
+          startScale: canvasScale
+        };
+      }
+      e.preventDefault();
+      return;
+    }
     closeAllPopups();
     const rect = iframe.getBoundingClientRect();
     const x = (e.clientX - rect.left) / canvasScale;
@@ -1307,6 +1340,23 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 
   iframeOverlay.addEventListener('pointermove', (e) => {
     if(!editMode) return;
+    const tracked = activePointers.get(e.pointerId);
+    if(tracked) { tracked.x = e.clientX; tracked.y = e.clientY; }
+    if(pinchIds) {
+      const p1 = activePointers.get(pinchIds[0]), p2 = activePointers.get(pinchIds[1]);
+      if(p1 && p2) {
+        const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+        const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, pinchAnchor.startScale * (dist / pinchAnchor.startDist)));
+        const wrapRect = canvasWrap.getBoundingClientRect();
+        canvasScale = newScale;
+        canvasPanX = (mid.x - wrapRect.left) - pinchAnchor.contentX * newScale;
+        canvasPanY = (mid.y - wrapRect.top) - pinchAnchor.contentY * newScale;
+        applyCanvasTransform();
+      }
+      e.preventDefault();
+      return;
+    }
     // Annotation tools: extend the stroke, or keep erasing
     if(drawTool) {
       if(e.pointerType === 'touch') return;
@@ -1384,7 +1434,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
         panelHiddenDuringDrag = true;
         panel.classList.remove('open');
       }
-      const scale = zoomLevel / 100;
+      const scale = canvasScale;
       const dx = (e.clientX - resizeStart.x) / scale;
       const dy = (e.clientY - resizeStart.y) / scale;
       const MIN_SIZE = 20;
@@ -1424,6 +1474,12 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   });
 
   iframeOverlay.addEventListener('pointerup', (e) => {
+    activePointers.delete(e.pointerId);
+    if(pinchIds && (e.pointerId === pinchIds[0] || e.pointerId === pinchIds[1])) {
+      pinchIds = null;
+      pinchAnchor = null;
+      return;
+    }
     if(drawTool) {
       if(e.pointerType === 'touch') return;
       if(drawTool === 'eraser') { if(erasing) { erasing = false; saveState(); } }
@@ -1495,6 +1551,22 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   // CHANGE 6: Forward wheel events through overlay to iframe for scrolling in edit mode
   iframeOverlay.addEventListener('wheel', (e) => {
     if(!editMode || !iframe.contentWindow) return;
+    // Trackpad pinch on Mac Chrome/Safari is reported as a wheel event with
+    // ctrlKey:true (there's no standard DOM pinch event) — zoom around the
+    // cursor, reusing the same state/transform as the touch pinch gesture.
+    if(e.ctrlKey) {
+      e.preventDefault();
+      const wrapRect = canvasWrap.getBoundingClientRect();
+      const contentX = (e.clientX - wrapRect.left - canvasPanX) / canvasScale;
+      const contentY = (e.clientY - wrapRect.top - canvasPanY) / canvasScale;
+      const factor = Math.exp(-e.deltaY * 0.01);
+      const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, canvasScale * factor));
+      canvasScale = newScale;
+      canvasPanX = (e.clientX - wrapRect.left) - contentX * newScale;
+      canvasPanY = (e.clientY - wrapRect.top) - contentY * newScale;
+      applyCanvasTransform();
+      return;
+    }
     iframe.contentWindow.scrollBy(0, e.deltaY);
     e.preventDefault();
   }, { passive: false });
@@ -1780,6 +1852,39 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     updateSelectionButtons();
   }
 
+  // Cleanly abandon whatever single-pointer gesture (draw/drag/resize/rotate/
+  // marquee/deferred-select) is in flight when a second finger starts a pinch.
+  // Deliberately duplicates pointerup's cleanup bodies rather than sharing them,
+  // so this stays isolated from that already-shipped, already-tested handler.
+  function finalizeGesture() {
+    if(drawTool === 'eraser' && erasing) { erasing = false; saveState(); }
+    else if(curStroke) { curStroke = null; curPts = ''; saveState(); }
+    if(isMarquee) { if(marqueeEl) marqueeEl.remove(); isMarquee = false; marqueeEl = null; }
+    pendingSelect = null;
+    if(isDragging) { isDragging = false; hideSmartGuides(); saveState(); updatePanel(); if(selectedEl) addResizeHandles(); }
+    if(isResizing) {
+      isResizing = false;
+      if(resizePlaceholder && selectedEl) {
+        const newW = selectedEl.offsetWidth, newH = selectedEl.offsetHeight;
+        resizePlaceholder.style.width = newW + 'px';
+        resizePlaceholder.style.height = newH + 'px';
+        selectedEl.style.position = ''; selectedEl.style.left = ''; selectedEl.style.top = ''; selectedEl.style.zIndex = '';
+        selectedEl.style.width = newW + 'px'; selectedEl.style.height = newH + 'px';
+        resizePlaceholder.remove(); resizePlaceholder = null;
+      }
+      saveState(); updatePanel();
+      if(selectedEl) addResizeHandles();
+    }
+    if(isRotating) { isRotating = false; saveState(); updatePanel(); if(selectedEl) addResizeHandles(); }
+    if(panelHiddenDuringDrag && selectedEl) {
+      panelHiddenDuringDrag = false;
+      panel.classList.add('open');
+      positionPanelNearElement();
+      if(selectedEl.dataset && selectedEl.dataset.editorObject === 'table') showTableToolbar();
+    } else {
+      panelHiddenDuringDrag = false;
+    }
+  }
 
   // === PANEL UPDATE ===
   function updatePanel() {
@@ -3277,6 +3382,9 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 
   function restoreFromHistory() {
     deselectElement();
+    // Undo/redo mid-pinch is unsupported: clear it rather than leaving pinchIds
+    // pointing at pointerIds that may never fire another event, wedging the canvas.
+    pinchIds = null; pinchAnchor = null; activePointers.clear();
     const histHTML = history[historyIndex];
     function afterRestore() {
       try {
@@ -3286,6 +3394,10 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
           return;
         }
         setupIframeListeners();
+        // The replaceIframe() swap below gives the new element a bare CSS-default
+        // transform; undo/redo should preserve zoom/pan (unlike a fresh load), so
+        // reapply the current values rather than resetting them.
+        applyCanvasTransform();
         updateHistoryButtons();
       } catch(ex) { console.error('Error al restaurar:', ex); }
     }
