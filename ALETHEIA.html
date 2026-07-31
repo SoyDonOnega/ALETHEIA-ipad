@@ -634,6 +634,14 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   document.documentElement.scrollTop = 0;
   document.documentElement.scrollLeft = 0;
 
+  // Suppress iOS Safari's native pinch-zoom for touches over the ribbon/canvas-wrap
+  // chrome itself (the matching block for the iframe's own content lives in
+  // setupIframeListeners()). WebKit fires these regardless of touch-action/preventDefault
+  // on pointer events, and Safari has ignored user-scalable=no for pinch since iOS 10.
+  document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+  document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
+  document.addEventListener('gestureend', function(e) { e.preventDefault(); });
+
   // === STATE ===
   let selectedEl = null;
   let selectedEls = []; // Multi-selection array
@@ -1014,9 +1022,22 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       if(!iframeDoc.getElementById('__no-hscroll__')) {
         var noHScrollStyle = iframeDoc.createElement('style');
         noHScrollStyle.id = '__no-hscroll__';
-        noHScrollStyle.textContent = 'html, body { overflow-x: hidden !important; }';
+        // touch-action: pan-x pan-y (NOT "manipulation", which per spec explicitly
+        // re-enables pinch-zoom) keeps native single/two-finger scrolling but tells
+        // iOS not to treat a 2-finger touch here as its own native pinch-zoom-the-page
+        // gesture — required alongside the gesturestart/change/end prevention below,
+        // since iOS Safari has ignored the `user-scalable=no` viewport meta tag for
+        // pinch-zoom since iOS 10. Without both, a real 2-finger pinch fights between
+        // the OS's native zoom and our own canvasScale transform, rendering garbled.
+        noHScrollStyle.textContent = 'html, body { overflow-x: hidden !important; touch-action: pan-x pan-y; }';
         (iframeDoc.head || iframeDoc.documentElement).appendChild(noHScrollStyle);
       }
+      // WebKit-proprietary gesture events fire for native pinch/rotate regardless of
+      // touch-action; Apple's own guidance is to preventDefault on all three to fully
+      // suppress native pinch-zoom (touch-action alone is not reliably sufficient).
+      iframeDoc.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+      iframeDoc.addEventListener('gesturechange', function(e) { e.preventDefault(); });
+      iframeDoc.addEventListener('gestureend', function(e) { e.preventDefault(); });
 
       // B) Helper: reset scrollLeft on all scrollable containers
       function killHorizontalScroll() {
