@@ -658,6 +658,13 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   let pinchIds = null;              // [id1, id2] anchoring an active pinch, or null
   let pinchAnchor = null;           // {contentX, contentY, startDist, startScale}
   const MIN_SCALE = 0.5, MAX_SCALE = 4;
+  // Browse-mode pinch-zoom: the overlay (which owns the pinch above) is hidden outside
+  // Edit mode, so a single-finger touch must reach the iframe's own document natively
+  // (native scrolling, link-tapping) — this tracks touches directly on iframeDoc instead,
+  // only stepping in once a genuine second finger appears.
+  const browsePinchPointers = new Map(); // pointerId -> {lx, ly} in the iframe's OWN local coords
+  let browsePinchIds = null;
+  let browsePinchAnchor = null;
   let currentFileName = 'documento-editado';
   let panelHiddenDuringDrag = false;
   let clipboardEl = null;
@@ -691,6 +698,15 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     iframe.style.transform = 'scale(' + canvasScale + ')';
     iframe.style.left = canvasPanX + 'px';
     iframe.style.top = canvasPanY + 'px';
+  }
+  // Converts a point in the iframe's own local coordinates (what pointer events fired
+  // INSIDE iframeDoc report — the browser maps the physical touch back through our CSS
+  // transform for us) into outer/screen coordinates, using the CURRENT canvasScale/Pan.
+  // Used by the Browse-mode pinch below, which listens on iframeDoc rather than the
+  // (hidden-outside-Edit-mode) overlay.
+  function localToScreen(lx, ly) {
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    return { x: wrapRect.left + canvasPanX + lx * canvasScale, y: wrapRect.top + canvasPanY + ly * canvasScale };
   }
   const iframeOverlay = document.getElementById('iframe-overlay');
   const welcomeOverlay = document.getElementById('welcome-overlay');
@@ -909,6 +925,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     btnMultiSelect.classList.remove('active');
     canvasScale = 1; canvasPanX = 0; canvasPanY = 0;
     activePointers.clear(); pinchIds = null; pinchAnchor = null;
+    browsePinchPointers.clear(); browsePinchIds = null; browsePinchAnchor = null;
 
     function initAfterLoad() {
       try {
@@ -1059,6 +1076,62 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
         if(!isTypingInEditable(e) && selectedEl) { e.preventDefault(); toggleBlockFormat(selectedEl, e.key.toUpperCase()); }
       }
     });
+
+    // === BROWSE-MODE PINCH-ZOOM ===
+    // A single touch is left completely alone (no preventDefault) so native scrolling
+    // and link-tapping keep working; only once a genuine second finger joins do we take
+    // over, mirroring the Edit-mode overlay's pinch math via localToScreen() above.
+    iframeDoc.addEventListener('pointerdown', (e) => {
+      if(editMode || e.pointerType !== 'touch') return;
+      try { e.target.setPointerCapture(e.pointerId); } catch(ex) {}
+      browsePinchPointers.set(e.pointerId, { lx: e.clientX, ly: e.clientY });
+      if(browsePinchPointers.size >= 2) {
+        if(browsePinchIds === null) {
+          const ids = [...browsePinchPointers.keys()].slice(0, 2);
+          browsePinchIds = ids;
+          const p1 = browsePinchPointers.get(ids[0]), p2 = browsePinchPointers.get(ids[1]);
+          const s1 = localToScreen(p1.lx, p1.ly), s2 = localToScreen(p2.lx, p2.ly);
+          const mid = { x: (s1.x + s2.x) / 2, y: (s1.y + s2.y) / 2 };
+          const wrapRect = canvasWrap.getBoundingClientRect();
+          browsePinchAnchor = {
+            contentX: (mid.x - wrapRect.left - canvasPanX) / canvasScale,
+            contentY: (mid.y - wrapRect.top - canvasPanY) / canvasScale,
+            startDist: Math.hypot(s2.x - s1.x, s2.y - s1.y) || 1,
+            startScale: canvasScale
+          };
+        }
+        e.preventDefault();
+      }
+    }, { passive: false });
+    iframeDoc.addEventListener('pointermove', (e) => {
+      if(editMode) return;
+      const tracked = browsePinchPointers.get(e.pointerId);
+      if(tracked) { tracked.lx = e.clientX; tracked.ly = e.clientY; }
+      if(browsePinchIds) {
+        const p1 = browsePinchPointers.get(browsePinchIds[0]), p2 = browsePinchPointers.get(browsePinchIds[1]);
+        if(p1 && p2) {
+          const s1 = localToScreen(p1.lx, p1.ly), s2 = localToScreen(p2.lx, p2.ly);
+          const mid = { x: (s1.x + s2.x) / 2, y: (s1.y + s2.y) / 2 };
+          const dist = Math.hypot(s2.x - s1.x, s2.y - s1.y) || 1;
+          const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, browsePinchAnchor.startScale * (dist / browsePinchAnchor.startDist)));
+          const wrapRect = canvasWrap.getBoundingClientRect();
+          canvasScale = newScale;
+          canvasPanX = (mid.x - wrapRect.left) - browsePinchAnchor.contentX * newScale;
+          canvasPanY = (mid.y - wrapRect.top) - browsePinchAnchor.contentY * newScale;
+          applyCanvasTransform();
+        }
+        e.preventDefault();
+      }
+    }, { passive: false });
+    function endBrowsePinchTouch(e) {
+      browsePinchPointers.delete(e.pointerId);
+      if(browsePinchIds && (e.pointerId === browsePinchIds[0] || e.pointerId === browsePinchIds[1])) {
+        browsePinchIds = null;
+        browsePinchAnchor = null;
+      }
+    }
+    iframeDoc.addEventListener('pointerup', endBrowsePinchTouch);
+    iframeDoc.addEventListener('pointercancel', endBrowsePinchTouch);
   }
 
   function showError(msg) {
@@ -3605,6 +3678,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     // Undo/redo mid-pinch is unsupported: clear it rather than leaving pinchIds
     // pointing at pointerIds that may never fire another event, wedging the canvas.
     pinchIds = null; pinchAnchor = null; activePointers.clear();
+    browsePinchIds = null; browsePinchAnchor = null; browsePinchPointers.clear();
     // The iframe (and its whole document) is about to be discarded and replaced
     // below — drop any JS references into it so nothing acts on dangling nodes.
     lassoPathEl = null; lassoSelection = []; lassoBoxEl = null; lassoDragStart = null; lassoPointerId = null;
