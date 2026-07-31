@@ -98,6 +98,10 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 .rb-btn.primary:disabled, .rb-btn.primary:disabled:hover { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: none; }
 .rb-btn-sm { height: 28px; flex-direction: row; gap: 4px; padding: 3px 6px; font-size: 11px; min-width: unset; }
 .rb-btn-sm svg { width: 14px; height: 14px; }
+/* Icon-only ribbon buttons (no visible label, name conveyed via title tooltip) — keeps
+   the toolbar within an iPad's width in portrait without horizontal scrolling. */
+.rb-btn-icon { min-width: 40px; width: 40px; height: 40px; padding: 6px; }
+.rb-btn-sm.rb-btn-icon { width: 32px; height: 32px; padding: 6px; }
 
 /* Mode toggle special */
 .mode-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; margin: 0 4px; background: var(--bg); padding: 2px; gap: 2px; }
@@ -285,17 +289,14 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       </div>
       <div class="ribbon-group">
         <div class="rg-wrap">
-          <button class="rb-btn rb-btn-sm" id="btn-copy" disabled="" title="Copy (Ctrl+C)">
+          <button class="rb-btn rb-btn-sm rb-btn-icon" id="btn-copy" disabled="" title="Copy (Ctrl+C)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
-            Copy
           </button>
-          <button class="rb-btn rb-btn-sm" id="btn-duplicate" disabled="" title="Duplicate (Ctrl+D)">
+          <button class="rb-btn rb-btn-sm rb-btn-icon" id="btn-duplicate" disabled="" title="Duplicate (Ctrl+D)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"></rect><rect x="4" y="4" width="12" height="12" rx="2"></rect></svg>
-            Duplicate
           </button>
-          <button class="rb-btn rb-btn-sm" id="btn-delete" disabled="" title="Delete (Del)">
+          <button class="rb-btn rb-btn-sm rb-btn-icon" id="btn-delete" disabled="" title="Delete (Del)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
-            Delete
           </button>
           <span class="ribbon-group-label">Clipboard</span>
         </div>
@@ -311,34 +312,28 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       </div>
       <div class="ribbon-group">
         <div class="rg-wrap">
-          <button class="rb-btn active" id="btn-select" disabled title="Select — tap to select, drag, resize, rotate">
+          <button class="rb-btn rb-btn-icon active" id="btn-select" disabled title="Select — tap to select, drag, resize, rotate">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l7.07 17 2.51-7.39L21 11.07z"></path></svg>
-            Select
           </button>
-          <button class="rb-btn" id="btn-insert-pencil" disabled="" title="Pencil — freehand drawing">
+          <button class="rb-btn rb-btn-icon" id="btn-insert-pencil" disabled="" title="Pencil — freehand drawing">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3 0z" transform="translate(-4 -2)"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
-            Pencil
           </button>
-          <button class="rb-btn" id="btn-insert-highlight" disabled="" title="Highlighter — drag to mark">
+          <button class="rb-btn rb-btn-icon" id="btn-insert-highlight" disabled="" title="Highlighter — drag to mark">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l-4 4v4h4l4-4"></path><path d="M13 7l4 4"></path><path d="M14 4l6 6-7 7-6-6z"></path></svg>
-            Highlight
           </button>
-          <button class="rb-btn" id="btn-insert-eraser" disabled="" title="Eraser — remove pencil &amp; highlighter strokes">
+          <button class="rb-btn rb-btn-icon" id="btn-insert-eraser" disabled="" title="Eraser — remove pencil &amp; highlighter strokes">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 21h13"></path><path d="M5 14l6-6 7 7-5 5H8z"></path><path d="M9 6l7 7"></path></svg>
-            Eraser
           </button>
-          <button class="rb-btn" id="btn-insert-lasso" disabled="" title="Lasso — select ink strokes to move them">
+          <button class="rb-btn rb-btn-icon" id="btn-insert-lasso" disabled="" title="Lasso — select ink strokes to move them">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3C7 3 3 6.5 3 10.5c0 3 2 5.5 5 6.3L7 21l3.5-2.2c.5.1 1 .1 1.5.1 5 0 9-3.5 9-7.5S17 3 12 3z"></path><circle cx="7.5" cy="17" r="1.4" fill="currentColor" stroke="none"></circle></svg>
-            Lasso
           </button>
           <span class="ribbon-group-label">Tools</span>
         </div>
       </div>
       <div class="ribbon-group">
         <div class="rg-wrap">
-          <button class="rb-btn rb-btn-sm" id="btn-grid-toggle" title="Toggle background grid">
+          <button class="rb-btn rb-btn-sm rb-btn-icon" id="btn-grid-toggle" title="Toggle background grid">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="3" y2="21"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line><line x1="21" y1="3" x2="21" y2="21"></line><line x1="3" y1="3" x2="21" y2="3"></line><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="3" y1="21" x2="21" y2="21"></line></svg>
-            Grid
           </button>
           <span class="ribbon-group-label">View</span>
         </div>
