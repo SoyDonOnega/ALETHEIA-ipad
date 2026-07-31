@@ -79,9 +79,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 #ribbon-tabs { display: flex; align-items: center; height: 32px; background: var(--bg); border-bottom: 1px solid var(--border); padding: 0 14px; gap: 0; }
 #ribbon-tabs .brand { font-family: system-ui, -apple-system, "Helvetica Neue", "Segoe UI", sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; color: var(--primary); margin-right: 18px; white-space: nowrap; }
 #ribbon-tabs .brand .brand-name { font-weight: 700; }
-.ribbon-tab { padding: 6px 14px; border: none; background: transparent; color: var(--text-muted); font-family: system-ui, -apple-system, "Helvetica Neue", "Segoe UI", sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; cursor: pointer; border-bottom: 2px solid transparent; transition: color .15s, border-color .15s; }
-.ribbon-tab:hover { color: var(--primary); }
-.ribbon-tab.active { color: var(--primary); border-bottom-color: var(--accent); background: var(--surface); }
 #ribbon-content { flex: 1; display: flex; align-items: center; padding: 0 10px; overflow-x: auto; }
 .ribbon-panel { display: none; height: 100%; align-items: center; gap: 4px; }
 .ribbon-panel.active { display: flex; }
@@ -179,6 +176,9 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 .menu-popup button { display: block; width: 100%; text-align: left; padding: 7px 12px; border: none; background: transparent; color: var(--text); font-size: 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; font-family: inherit; }
 .menu-popup button:hover { background: var(--hover); }
 .menu-popup button:disabled { color: var(--text-muted); opacity: 0.5; cursor: not-allowed; background: transparent; }
+.menu-popup button.active { background: var(--accent-soft); color: var(--accent); }
+#insert-menu button, #select-menu button { display: flex; align-items: center; gap: 8px; }
+#insert-menu button svg, #select-menu button svg { width: 16px; height: 16px; flex-shrink: 0; }
 .menu-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 .note-swatches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 2px; }
 .note-swatch { width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; padding: 0; transition: transform .1s, box-shadow .1s; }
@@ -228,7 +228,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
 #panel input[type="number"]:focus, #panel select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 #panel input[type="range"], #panel input[type="color"] { accent-color: var(--accent); }
 #welcome-inner strong { color: var(--text); font-weight: 600; }
-.rb-btn, .ribbon-tab, .mode-toggle button, .toggle-btn, .shape-item, .table-cell, #section-table .tb-grid button { transition: background .15s, border-color .15s, color .15s, transform .12s, box-shadow .15s; }
+.rb-btn, .mode-toggle button, .toggle-btn, .shape-item, .table-cell, #section-table .tb-grid button { transition: background .15s, border-color .15s, color .15s, transform .12s, box-shadow .15s; }
 #panel::-webkit-scrollbar-thumb:hover { background: var(--gray-dark); }
 #file-group-wrap { padding-bottom: 0; justify-content: center; }
 .ribbon-group:has(#file-group-wrap) { padding-left: 12px; padding-right: 12px; }
@@ -244,9 +244,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     <span class="brand" title="ALETHEIA — Visual HTML Editor">
       <span class="brand-name">ALETHEIA</span>
     </span>
-    <button class="ribbon-tab active" data-tab="inicio">Home</button>
-    <button class="ribbon-tab" data-tab="insertar">Insert</button>
-    <button class="ribbon-tab" data-tab="formato">Format</button>
     <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
       <button id="btn-theme" title="Toggle dark mode">
         <svg class="theme-ico-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
@@ -259,8 +256,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     </div>
   </div>
   <div id="ribbon-content">
-    <!-- HOME TAB -->
-    <div class="ribbon-panel active" data-panel="inicio">
+    <div class="ribbon-panel active">
       <div class="ribbon-group">
         <div class="rg-wrap" id="file-group-wrap">
           <button class="rb-btn" id="btn-upload" title="Upload HTML file">
@@ -306,57 +302,19 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       </div>
       <div class="ribbon-group">
         <div class="rg-wrap">
-          <button class="rb-btn rb-btn-sm" id="btn-multiselect" disabled="" title="Multi-select mode — tap objects to add/remove from selection">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
-            Multi-select
-          </button>
-          <span class="ribbon-group-label">Selection</span>
-        </div>
-      </div>
-      <div class="ribbon-group">
-        <div class="rg-wrap">
-          <button class="rb-btn rb-btn-sm" id="btn-grid-toggle" title="Toggle background grid">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="3" y2="21"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line><line x1="21" y1="3" x2="21" y2="21"></line><line x1="3" y1="3" x2="21" y2="3"></line><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="3" y1="21" x2="21" y2="21"></line></svg>
-            Grid
-          </button>
-          <span class="ribbon-group-label">View</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- INSERT TAB -->
-    <div class="ribbon-panel" data-panel="insertar">
-      <div class="ribbon-group">
-        <div class="rg-wrap">
-          <button class="rb-btn" id="btn-insert-textbox" disabled="" title="Insert text box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"></rect><line x1="7" y1="9" x2="17" y2="9"></line><line x1="7" y1="13" x2="13" y2="13"></line></svg>
-            Text
-          </button>
-          <button class="rb-btn" id="btn-insert-shape" disabled="" title="Insert shape">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="12" cy="12" r="4"></circle></svg>
-            Shapes
-          </button>
-          <button class="rb-btn" id="btn-insert-image" disabled="" title="Insert image">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-            Image
-          </button>
-          <button class="rb-btn" id="btn-insert-table" disabled="" title="Insert table">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
-            Table
-          </button>
-          <button class="rb-btn" id="btn-insert-note" disabled="" title="Insert colored note">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v11l-5 5H4z"></path><path d="M20 15h-5v5"></path></svg>
-            Note
-          </button>
-          <button class="rb-btn" id="btn-insert-link" disabled="" title="Add / edit hyperlink">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"></path></svg>
-            Link
+          <button class="rb-btn" id="btn-insert-menu" disabled title="Insert a text box, shape, image, table, note or link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>
+            Insert ▾
           </button>
           <span class="ribbon-group-label">Insert</span>
         </div>
       </div>
       <div class="ribbon-group">
         <div class="rg-wrap">
+          <button class="rb-btn active" id="btn-select" disabled title="Select — tap to select, drag, resize, rotate">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l7.07 17 2.51-7.39L21 11.07z"></path></svg>
+            Select
+          </button>
           <button class="rb-btn" id="btn-insert-pencil" disabled="" title="Pencil — freehand drawing">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3 0z" transform="translate(-4 -2)"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
             Pencil
@@ -373,57 +331,19 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3C7 3 3 6.5 3 10.5c0 3 2 5.5 5 6.3L7 21l3.5-2.2c.5.1 1 .1 1.5.1 5 0 9-3.5 9-7.5S17 3 12 3z"></path><circle cx="7.5" cy="17" r="1.4" fill="currentColor" stroke="none"></circle></svg>
             Lasso
           </button>
-          <span class="ribbon-group-label">Annotate</span>
+          <span class="ribbon-group-label">Tools</span>
+        </div>
+      </div>
+      <div class="ribbon-group">
+        <div class="rg-wrap">
+          <button class="rb-btn rb-btn-sm" id="btn-grid-toggle" title="Toggle background grid">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="3" y2="21"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line><line x1="21" y1="3" x2="21" y2="21"></line><line x1="3" y1="3" x2="21" y2="3"></line><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="3" y1="21" x2="21" y2="21"></line></svg>
+            Grid
+          </button>
+          <span class="ribbon-group-label">View</span>
         </div>
       </div>
     </div>
-
-    <div class="ribbon-panel" data-panel="formato">
-      <div class="ribbon-group">
-        <div class="rg-wrap">
-          <button class="rb-btn rb-btn-sm" id="btn-bold" disabled="" title="Bold (Ctrl/⌘+B)"><b style="font-size:15px">B</b></button>
-          <button class="rb-btn rb-btn-sm" id="btn-italic" disabled="" title="Italic (Ctrl/⌘+I)"><i style="font-size:15px">I</i></button>
-          <button class="rb-btn rb-btn-sm" id="btn-underline" disabled="" title="Underline (Ctrl/⌘+U)"><u style="font-size:15px">U</u></button>
-          <span class="ribbon-group-label">Font</span>
-        </div>
-      </div>
-      <div class="ribbon-group">
-        <div class="rg-wrap">
-          <button class="rb-btn rb-btn-sm" id="btn-align-left" disabled="" title="Align text left">Left</button>
-          <button class="rb-btn rb-btn-sm" id="btn-align-center" disabled="" title="Align text center">Center</button>
-          <button class="rb-btn rb-btn-sm" id="btn-align-right" disabled="" title="Align text right">Right</button>
-          <span class="ribbon-group-label">Text align</span>
-        </div>
-      </div>
-      <div class="ribbon-group">
-        <div class="rg-wrap">
-          <button class="rb-btn rb-btn-sm" id="btn-fill-color" disabled="" title="Fill color">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 3.5l8 8-6.5 6.5a2 2 0 0 1-3 0l-5-5a2 2 0 0 1 0-3z"></path><path d="M10.5 3.5l-2-2"></path><path d="M20 14.5c1 1.3 1.6 2.4 1.6 3.2a1.6 1.6 0 1 1-3.2 0c0-.8.6-1.9 1.6-3.2z" fill="currentColor" stroke="none"></path></svg>
-            Fill
-          </button>
-          <button class="rb-btn rb-btn-sm" id="btn-stroke-color" disabled="" title="Stroke / border">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
-            Stroke
-          </button>
-          <button class="rb-btn rb-btn-sm" id="btn-shadow" disabled="" title="Shadow">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="7" width="13" height="13" rx="2" stroke-opacity="0.4"></rect><rect x="4" y="4" width="13" height="13" rx="2"></rect></svg>
-            Shadow
-          </button>
-          <span class="ribbon-group-label">Style</span>
-        </div>
-      </div>
-      <div class="ribbon-group">
-        <div class="rg-wrap">
-          <button class="rb-btn rb-btn-sm" id="btn-rotate-left" disabled="" title="Rotate left">−90°</button>
-          <button class="rb-btn rb-btn-sm" id="btn-rotate-right" disabled="" title="Rotate right">+90°</button>
-          <button class="rb-btn rb-btn-sm" id="btn-flip-h" disabled="" title="Flip horizontal">Flip H</button>
-          <span class="ribbon-group-label">Rotate</span>
-        </div>
-      </div>
-
-
-    </div>
-
 
   </div>
 </div>
@@ -479,6 +399,18 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       <div class="panel-row">
         <label>Color:</label>
         <input type="color" id="p-color">
+      </div>
+      <div class="panel-row">
+        <label>Style:</label>
+        <button class="rb-btn rb-btn-sm" id="btn-bold" title="Bold (Ctrl/⌘+B)"><b style="font-size:15px">B</b></button>
+        <button class="rb-btn rb-btn-sm" id="btn-italic" title="Italic (Ctrl/⌘+I)"><i style="font-size:15px">I</i></button>
+        <button class="rb-btn rb-btn-sm" id="btn-underline" title="Underline (Ctrl/⌘+U)"><u style="font-size:15px">U</u></button>
+      </div>
+      <div class="panel-row">
+        <label>Align:</label>
+        <button class="rb-btn rb-btn-sm" id="btn-align-left" title="Align text left">Left</button>
+        <button class="rb-btn rb-btn-sm" id="btn-align-center" title="Align text center">Center</button>
+        <button class="rb-btn rb-btn-sm" id="btn-align-right" title="Align text right">Right</button>
       </div>
     </div>
     <div class="panel-section">
@@ -537,6 +469,12 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       </div>
       <div class="panel-row">
         <label>Rot:</label><input type="number" id="p-rotation" min="-360" max="360" step="1">°
+      </div>
+      <div class="panel-row">
+        <label>Quick:</label>
+        <button class="rb-btn rb-btn-sm" id="btn-rotate-left" title="Rotate left 90°">−90°</button>
+        <button class="rb-btn rb-btn-sm" id="btn-rotate-right" title="Rotate right 90°">+90°</button>
+        <button class="rb-btn rb-btn-sm" id="btn-flip-h" title="Flip horizontal">Flip H</button>
       </div>
     </div>
     <div class="panel-section" id="section-image" style="display:none;">
@@ -632,6 +570,42 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     <button class="eraser-size-btn active" data-size="28" title="Medium"><span class="eraser-dot" style="width:18px;height:18px"></span></button>
     <button class="eraser-size-btn" data-size="48" title="Large"><span class="eraser-dot" style="width:28px;height:28px"></span></button>
   </div>
+</div>
+
+<!-- Insert dropdown: Text / Shapes / Image / Table / Note / Link -->
+<div class="menu-popup" id="insert-menu">
+  <button id="btn-insert-textbox" disabled="" title="Insert text box">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"></rect><line x1="7" y1="9" x2="17" y2="9"></line><line x1="7" y1="13" x2="13" y2="13"></line></svg>
+    Text
+  </button>
+  <button id="btn-insert-shape" disabled="" title="Insert shape">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="12" cy="12" r="4"></circle></svg>
+    Shapes
+  </button>
+  <button id="btn-insert-image" disabled="" title="Insert image">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+    Image
+  </button>
+  <button id="btn-insert-table" disabled="" title="Insert table">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+    Table
+  </button>
+  <button id="btn-insert-note" disabled="" title="Insert colored note">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v11l-5 5H4z"></path><path d="M20 15h-5v5"></path></svg>
+    Note
+  </button>
+  <button id="btn-insert-link" disabled="" title="Add / edit hyperlink">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"></path><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"></path></svg>
+    Link
+  </button>
+</div>
+
+<!-- Select tool options: multi-select toggle -->
+<div class="menu-popup" id="select-menu">
+  <button id="btn-multiselect" disabled="" title="Multi-select mode — tap objects to add/remove from selection">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+    Multi-select
+  </button>
 </div>
 
 <!-- Notion-style slash command menu -->
@@ -755,6 +729,10 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   const btnInsertEraser = document.getElementById('btn-insert-eraser');
   const btnInsertLasso = document.getElementById('btn-insert-lasso');
   const btnInsertLink = document.getElementById('btn-insert-link');
+  const btnInsertMenu = document.getElementById('btn-insert-menu');
+  const insertMenu = document.getElementById('insert-menu');
+  const btnSelect = document.getElementById('btn-select');
+  const selectMenu = document.getElementById('select-menu');
   const noteMenu = document.getElementById('note-menu');
   const slashMenu = document.getElementById('slash-menu');
   const highlightMenu = document.getElementById('highlight-menu');
@@ -767,9 +745,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   const btnAlignLeft = document.getElementById('btn-align-left');
   const btnAlignCenter = document.getElementById('btn-align-center');
   const btnAlignRight = document.getElementById('btn-align-right');
-  const btnFillColor = document.getElementById('btn-fill-color');
-  const btnStrokeColor = document.getElementById('btn-stroke-color');
-  const btnShadow = document.getElementById('btn-shadow');
   const btnRotateLeft = document.getElementById('btn-rotate-left');
   const btnRotateRight = document.getElementById('btn-rotate-right');
   const btnFlipH = document.getElementById('btn-flip-h');
@@ -848,17 +823,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     panelDragHandle.releasePointerCapture(e.pointerId);
   });
 
-  // === RIBBON TABS ===
-  document.querySelectorAll('.ribbon-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.ribbon-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.ribbon-panel').forEach(p => p.classList.remove('active'));
-      tab.classList.add('active');
-      const panel = document.querySelector('.ribbon-panel[data-panel="' + tab.dataset.tab + '"]');
-      if(panel) panel.classList.add('active');
-    });
-  });
-
   // === DARK MODE ===
   const btnTheme = document.getElementById('btn-theme');
   function applyTheme(dark) {
@@ -908,6 +872,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     btnInsertEraser.disabled = !loaded;
     btnInsertLasso.disabled = !loaded;
     btnInsertLink.disabled = !loaded;
+    btnInsertMenu.disabled = !loaded;
+    btnSelect.disabled = !loaded;
   }
 
   function updateSelectionButtons() {
@@ -915,18 +881,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     btnCopy.disabled = !has;
     btnDuplicate.disabled = !has;
     btnDelete.disabled = !has;
-    btnBold.disabled = !has;
-    btnItalic.disabled = !has;
-    btnUnderline.disabled = !has;
-    btnAlignLeft.disabled = !has;
-    btnAlignCenter.disabled = !has;
-    btnAlignRight.disabled = !has;
-    btnFillColor.disabled = !has;
-    btnStrokeColor.disabled = !has;
-    btnShadow.disabled = !has;
-    btnRotateLeft.disabled = !has;
-    btnRotateRight.disabled = !has;
-    btnFlipH.disabled = !has;
   }
 
   // === FILE UPLOAD ===
@@ -2018,14 +1972,14 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   pBg.addEventListener('input', () => { const t = selTargets(); if(!t.length) return; t.forEach(el => el.style.backgroundColor = pBg.value); saveState(); });
   pBgClear.addEventListener('click', () => { const t = selTargets(); if(!t.length) return; t.forEach(el => el.style.backgroundColor = ''); saveState(); });
   pOpacity.addEventListener('input', () => { const t = selTargets(); if(!t.length) return; t.forEach(el => el.style.opacity = pOpacity.value/100); pOpacityVal.textContent = pOpacity.value+'%'; saveState(); });
-  pBorderW.addEventListener('input', () => { if(selectedEl) { applyBorder(); saveState(); }});
-  pBorderS.addEventListener('change', () => { if(selectedEl) { applyBorder(); saveState(); }});
-  pBorderC.addEventListener('input', () => { if(selectedEl) { applyBorder(); saveState(); }});
+  pBorderW.addEventListener('input', () => { if(selTargets().length) { applyBorder(); saveState(); }});
+  pBorderS.addEventListener('change', () => { if(selTargets().length) { applyBorder(); saveState(); }});
+  pBorderC.addEventListener('input', () => { if(selTargets().length) { applyBorder(); saveState(); }});
   pBorderR.addEventListener('input', () => { const t = selTargets(); if(!t.length) return; t.forEach(el => el.style.borderRadius = pBorderR.value + 'px'); saveState(); });
   pShadowToggle.addEventListener('click', () => {
-    if(!selectedEl) return;
+    const t = selTargets(); if(!t.length) return;
     const hasShadow = pShadowToggle.classList.contains('active');
-    selectedEl.style.boxShadow = hasShadow ? 'none' : '3px 3px 10px rgba(0,0,0,0.3)';
+    t.forEach(el => el.style.boxShadow = hasShadow ? 'none' : '3px 3px 10px rgba(0,0,0,0.3)');
     pShadowToggle.classList.toggle('active');
     pShadowToggle.textContent = hasShadow ? 'Off' : 'On';
     saveState();
@@ -2034,11 +1988,17 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   pPosY.addEventListener('change', () => { if(selectedEl) { ensurePositioned(selectedEl); selectedEl.style.top = pPosY.value + 'px'; saveState(); }});
   pDimW.addEventListener('change', () => { if(selectedEl) { selectedEl.style.width = pDimW.value + 'px'; saveState(); }});
   pDimH.addEventListener('change', () => { if(selectedEl) { selectedEl.style.height = pDimH.value + 'px'; saveState(); }});
-  pRotation.addEventListener('change', () => { if(selectedEl) { selectedEl.style.transform = 'rotate(' + pRotation.value + 'deg)'; saveState(); }});
+  pRotation.addEventListener('change', () => {
+    if(!selectedEl) return;
+    const tx = selectedEl.style.transform || '';
+    const m = tx.match(/rotate\([-\d.]+deg\)/);
+    selectedEl.style.transform = m ? tx.replace(m[0], 'rotate(' + pRotation.value + 'deg)') : (tx + ' rotate(' + pRotation.value + 'deg)').trim();
+    saveState();
+  });
 
   function applyBorder() {
-    if(!selectedEl) return;
-    selectedEl.style.border = pBorderW.value + 'px ' + pBorderS.value + ' ' + pBorderC.value;
+    const t = selTargets(); if(!t.length) return;
+    t.forEach(el => { el.style.border = pBorderW.value + 'px ' + pBorderS.value + ' ' + pBorderC.value; });
   }
   function ensurePositioned(el) {
     if(!el.style.position || el.style.position === 'static') {
@@ -2053,37 +2013,6 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   btnAlignLeft.addEventListener('click', () => { const t = selTargets(); if(!t.length) return; t.forEach(el => el.style.textAlign = 'left'); saveState(); });
   btnAlignCenter.addEventListener('click', () => { const t = selTargets(); if(!t.length) return; t.forEach(el => el.style.textAlign = 'center'); saveState(); });
   btnAlignRight.addEventListener('click', () => { const t = selTargets(); if(!t.length) return; t.forEach(el => el.style.textAlign = 'right'); saveState(); });
-
-  btnFillColor.addEventListener('click', () => {
-    const t = selTargets(); if(!t.length) return;
-    const input = document.createElement('input');
-    input.type = 'color';
-    input.value = rgbToHex(getCS(t[0]).backgroundColor);
-    input.style.position = 'fixed'; input.style.top = '-100px';
-    document.body.appendChild(input);
-    input.addEventListener('input', () => { t.forEach(el => el.style.backgroundColor = input.value); });
-    input.addEventListener('change', () => { saveState(); document.body.removeChild(input); });
-    input.click();
-  });
-
-  btnStrokeColor.addEventListener('click', () => {
-    const t = selTargets(); if(!t.length) return;
-    const input = document.createElement('input');
-    input.type = 'color';
-    input.value = rgbToHex(getCS(t[0]).borderColor);
-    input.style.position = 'fixed'; input.style.top = '-100px';
-    document.body.appendChild(input);
-    input.addEventListener('input', () => { t.forEach(el => el.style.border = '2px solid ' + input.value); });
-    input.addEventListener('change', () => { saveState(); document.body.removeChild(input); });
-    input.click();
-  });
-
-  btnShadow.addEventListener('click', () => {
-    const t = selTargets(); if(!t.length) return;
-    const hasShadow = getCS(t[0]).boxShadow !== 'none';
-    t.forEach(el => el.style.boxShadow = hasShadow ? 'none' : '3px 3px 10px rgba(0,0,0,0.3)');
-    saveState(); updatePanel();
-  });
 
   // Rotation
   btnRotateLeft.addEventListener('click', () => { const t = selTargets(); if(!t.length) return; t.forEach(el => { const tx = el.style.transform||''; const m = tx.match(/rotate\(([-\d.]+)deg\)/); const cur = m ? parseFloat(m[1]) : 0; const nr = cur - 90; el.style.transform = m ? tx.replace(/rotate\([-\d.]+deg\)/, 'rotate('+nr+'deg)') : tx+' rotate('+nr+'deg)'; }); saveState(); updatePanel(); });
@@ -2173,6 +2102,30 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   }
 
 
+
+  // === INSERT DROPDOWN ===
+  btnInsertMenu.addEventListener('click', (e) => {
+    if(!loaded) return;
+    const wasOpen = insertMenu.classList.contains('show');
+    const rect = e.currentTarget.getBoundingClientRect();
+    closeAllPopups();
+    if(wasOpen) return; // click toggles the dropdown closed
+    insertMenu.style.top = (rect.bottom + 4) + 'px';
+    insertMenu.style.left = rect.left + 'px';
+    insertMenu.classList.add('show');
+  });
+
+  // === SELECT TOOL (the default tap-to-select/drag/resize/rotate interaction,
+  // made explicit alongside Pencil/Highlight/Eraser/Lasso; its popup holds Multi-select) ===
+  btnSelect.addEventListener('click', (e) => {
+    if(!loaded) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    closeAllPopups();
+    setDrawTool(null);
+    selectMenu.style.top = (rect.bottom + 4) + 'px';
+    selectMenu.style.left = rect.left + 'px';
+    selectMenu.classList.add('show');
+  });
 
   // === TOUCH MULTI-SELECT (stand-in for the ctrl/cmd-click modifier; no keyboard on iPad) ===
   btnMultiSelect.addEventListener('click', () => {
@@ -2417,8 +2370,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   btnInsertShape.addEventListener('click', (e) => {
     if(!loaded) return;
     if(drawTool) setDrawTool(null);
-    closeAllPopups();
     const rect = e.currentTarget.getBoundingClientRect();
+    closeAllPopups();
     shapesPopup.style.top = (rect.bottom + 4) + 'px';
     shapesPopup.style.left = rect.left + 'px';
     shapesPopup.classList.add('show');
@@ -2481,8 +2434,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   btnInsertNote.addEventListener('click', (e) => {
     if(!loaded) return;
     if(drawTool) setDrawTool(null);
-    closeAllPopups();
     const rect = e.currentTarget.getBoundingClientRect();
+    closeAllPopups();
     noteMenu.style.top = (rect.bottom + 4) + 'px';
     noteMenu.style.left = rect.left + 'px';
     noteMenu.classList.add('show');
@@ -2549,6 +2502,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   function setDrawTool(tool) {
     drawTool = tool;
     curStroke = null; curPts = ''; erasing = false; curStrokeOwner = null; // always reset on tool change
+    btnSelect.classList.toggle('active', tool === null);
     btnInsertPencil.classList.toggle('active', tool === 'pen');
     btnInsertHighlight.classList.toggle('active', tool === 'marker');
     btnInsertEraser.classList.toggle('active', tool === 'eraser');
@@ -2859,6 +2813,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   btnInsertLink.addEventListener('click', () => {
     if(!iframeDoc || !loaded) return;
     if(drawTool) setDrawTool(null);
+    insertMenu.classList.remove('show');
     const sel = iframeDoc.getSelection();
     const hasTextSel = sel && sel.rangeCount > 0 && !sel.isCollapsed;
     if(!hasTextSel && !selectedEl) { showToast('Select an object or some text first'); return; }
@@ -3070,8 +3025,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   btnInsertTable.addEventListener('click', (e) => {
     if(!loaded) return;
     if(drawTool) setDrawTool(null);
-    closeAllPopups();
     const rect = e.currentTarget.getBoundingClientRect();
+    closeAllPopups();
     tablePopup.style.top = (rect.bottom + 4) + 'px';
     tablePopup.style.left = rect.left + 'px';
     tablePopup.classList.add('show');
@@ -3348,7 +3303,7 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   });
 
   // === INSERT: IMAGE ===
-  btnInsertImage.addEventListener('click', () => { if(drawTool) setDrawTool(null); imgAddInput.click(); });
+  btnInsertImage.addEventListener('click', () => { if(drawTool) setDrawTool(null); insertMenu.classList.remove('show'); imgAddInput.click(); });
   imgAddInput.addEventListener('change', (e) => {
     if(!e.target.files[0] || !iframeDoc) return;
     if(!editMode) switchMode(true);
@@ -3840,6 +3795,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     highlightMenu.classList.remove('show');
     penMenu.classList.remove('show');
     eraserMenu.classList.remove('show');
+    insertMenu.classList.remove('show');
+    selectMenu.classList.remove('show');
   }
   document.addEventListener('click', (e) => {
     if(!shapesPopup.contains(e.target) && !btnInsertShape.contains(e.target)) shapesPopup.classList.remove('show');
@@ -3848,6 +3805,8 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     if(!highlightMenu.contains(e.target) && !btnInsertHighlight.contains(e.target)) highlightMenu.classList.remove('show');
     if(!penMenu.contains(e.target) && !btnInsertPencil.contains(e.target)) penMenu.classList.remove('show');
     if(!eraserMenu.contains(e.target) && !btnInsertEraser.contains(e.target)) eraserMenu.classList.remove('show');
+    if(!insertMenu.contains(e.target) && !btnInsertMenu.contains(e.target)) insertMenu.classList.remove('show');
+    if(!selectMenu.contains(e.target) && !btnSelect.contains(e.target)) selectMenu.classList.remove('show');
     if(slashOpen && !slashMenu.contains(e.target)) closeSlash();
   });
   // Prevent panel/toolbar clicks from propagating to iframe overlay deselect
