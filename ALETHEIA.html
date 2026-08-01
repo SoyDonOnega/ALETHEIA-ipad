@@ -711,9 +711,12 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
   // INSIDE iframeDoc report — the browser maps the physical touch back through our CSS
   // transform for us) into outer/screen coordinates, using the CURRENT canvasScale/Pan.
   // Used by the Browse-mode pinch below, which listens on iframeDoc rather than the
-  // (hidden-outside-Edit-mode) overlay.
-  function localToScreen(lx, ly) {
-    const wrapRect = canvasWrap.getBoundingClientRect();
+  // (hidden-outside-Edit-mode) overlay. Takes wrapRect as a parameter rather than
+  // reading canvasWrap.getBoundingClientRect() itself — that's a forced synchronous
+  // reflow, and calling it twice per pointermove (once per finger) on top of the pinch
+  // math's own read was three forced layouts per touch sample, enough to visibly stutter
+  // and stall a real 60-120Hz touch stream. Callers read it once and pass it through.
+  function localToScreen(wrapRect, lx, ly) {
     return { x: wrapRect.left + canvasPanX + lx * canvasScale, y: wrapRect.top + canvasPanY + ly * canvasScale };
   }
   const iframeOverlay = document.getElementById('iframe-overlay');
@@ -1104,16 +1107,15 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
     // over, mirroring the Edit-mode overlay's pinch math via localToScreen() above.
     iframeDoc.addEventListener('pointerdown', (e) => {
       if(editMode || e.pointerType !== 'touch') return;
-      try { e.target.setPointerCapture(e.pointerId); } catch(ex) {}
       browsePinchPointers.set(e.pointerId, { lx: e.clientX, ly: e.clientY });
       if(browsePinchPointers.size >= 2) {
         if(browsePinchIds === null) {
           const ids = [...browsePinchPointers.keys()].slice(0, 2);
           browsePinchIds = ids;
           const p1 = browsePinchPointers.get(ids[0]), p2 = browsePinchPointers.get(ids[1]);
-          const s1 = localToScreen(p1.lx, p1.ly), s2 = localToScreen(p2.lx, p2.ly);
-          const mid = { x: (s1.x + s2.x) / 2, y: (s1.y + s2.y) / 2 };
           const wrapRect = canvasWrap.getBoundingClientRect();
+          const s1 = localToScreen(wrapRect, p1.lx, p1.ly), s2 = localToScreen(wrapRect, p2.lx, p2.ly);
+          const mid = { x: (s1.x + s2.x) / 2, y: (s1.y + s2.y) / 2 };
           browsePinchAnchor = {
             contentX: (mid.x - wrapRect.left - canvasPanX) / canvasScale,
             contentY: (mid.y - wrapRect.top - canvasPanY) / canvasScale,
@@ -1131,11 +1133,11 @@ h1,h2,h3,h4,h5,h6 { font-family: system-ui, -apple-system, "Helvetica Neue", "Se
       if(browsePinchIds) {
         const p1 = browsePinchPointers.get(browsePinchIds[0]), p2 = browsePinchPointers.get(browsePinchIds[1]);
         if(p1 && p2) {
-          const s1 = localToScreen(p1.lx, p1.ly), s2 = localToScreen(p2.lx, p2.ly);
+          const wrapRect = canvasWrap.getBoundingClientRect();
+          const s1 = localToScreen(wrapRect, p1.lx, p1.ly), s2 = localToScreen(wrapRect, p2.lx, p2.ly);
           const mid = { x: (s1.x + s2.x) / 2, y: (s1.y + s2.y) / 2 };
           const dist = Math.hypot(s2.x - s1.x, s2.y - s1.y) || 1;
           const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, browsePinchAnchor.startScale * (dist / browsePinchAnchor.startDist)));
-          const wrapRect = canvasWrap.getBoundingClientRect();
           canvasScale = newScale;
           canvasPanX = (mid.x - wrapRect.left) - browsePinchAnchor.contentX * newScale;
           canvasPanY = (mid.y - wrapRect.top) - browsePinchAnchor.contentY * newScale;
